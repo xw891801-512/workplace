@@ -430,10 +430,12 @@ function MonthPlan() {
   const [plans, setPlans] = usePersistentState("winnie-month-plans", { 30: ["完成工作台页面规划"] });
   const [draft, setDraft] = useState("");
   const [events, setEvents] = usePersistentState("winnie-month-events", [
-    { id: 1, title: "项目初稿", type: "deadline", start: 18, end: 18 },
-    { id: 2, title: "旅行", type: "range", start: 24, end: 27 }
+    { id: 1, title: "项目初稿", type: "deadline", emoji: "📌", color: "rose", start: 18, end: 18 },
+    { id: 2, title: "旅行", type: "range", emoji: "🌿", color: "lilac", start: 24, end: 27 }
   ]);
-  const [eventDraft, setEventDraft] = useState({ title: "", type: "deadline", start: 30, end: 30 });
+  const [eventDraft, setEventDraft] = useState({ title: "", type: "deadline", emoji: "📌", color: "rose", start: 30, end: 30 });
+  const eventEmojiOptions = ["📌","⏰","⭐","🌿","🎯","📚","💼","✈️","🎉","💡"];
+  const eventColorOptions = [{value:"rose",label:"樱花粉"},{value:"lilac",label:"淡紫色"},{value:"blue",label:"雾霾蓝"},{value:"mint",label:"薄荷绿"},{value:"peach",label:"蜜桃色"}];
   const agendaActiveRef = useRef(null);
   const [viewYear, viewMonthNumber] = viewMonth.split("-").map(Number);
   const daysInMonth = new Date(viewYear, viewMonthNumber, 0).getDate();
@@ -481,19 +483,19 @@ function MonthPlan() {
           const rangeSpan = startsRangeRow ? Math.min(visibleEvent.end - day + 1, 7 - calendarColumn) : 0;
           return <button key={day} className={`${selected === day ? "selected " : ""}${planKey(day) === localDateKey() ? "is-today " : ""}${(plansForDay(day).length || dayEvents.length) ? "has-plan " : ""}${dayEvents.some(item => item.type === "range") ? "in-range " : ""}${startsRangeRow ? "range-row-start" : ""}`} onClick={() => setSelected(day)}>
             <b>{day}</b>
-            {visibleEvent && visibleEvent.type !== "range" && <small className={`calendar-event ${visibleEvent.type}`} title={visibleEvent.title}>{visibleEvent.type === "deadline" ? `⚠ ${visibleEvent.title}` : visibleEvent.title}</small>}
+            {visibleEvent && visibleEvent.type !== "range" && <small className={`calendar-event ${visibleEvent.type} tone-${visibleEvent.color||"rose"}`} title={visibleEvent.title}>{visibleEvent.emoji||"📌"} {visibleEvent.title}</small>}
             {startsRangeRow && <small
-              className="calendar-event range continuous"
+              className={`calendar-event range continuous tone-${visibleEvent.color||"lilac"}`}
               title={visibleEvent.title}
               style={{ width: `calc(${rangeSpan * 100}% + ${(rangeSpan - 1) * 5}px)` }}
-            >▣ {visibleEvent.title}</small>}
+            >{visibleEvent.emoji||"🌿"} {visibleEvent.title}</small>}
           </button>;
         })}
       </div>
     </section>
     <section className="card deadline-card">
       <div className="section-heading"><div><span className="section-kicker">UPCOMING</span><h2>最近截止</h2></div><span className="count-pill">{upcomingDeadlines.length} 项</span></div>
-      {upcomingDeadlines.map(item=><div className="deadline-row" key={item.id}><span className="deadline-icon">▣</span><div><b>{item.title}</b><small>{Number(item.month.slice(5))} 月 {item.end} 日</small></div><strong>{item.remaining === 0 ? "今天截止" : `还有 ${item.remaining} 天`}</strong></div>)}
+      {upcomingDeadlines.map(item=><div className="deadline-row" key={item.id}><span className={`deadline-icon tone-${item.color||"rose"}`}>{item.emoji||"📌"}</span><div><b>{item.title} <small>（{Number(item.month.slice(5))} 月 {item.end} 日）</small></b></div><strong>{item.remaining === 0 ? "今天截止" : `还有 ${item.remaining} 天`}</strong></div>)}
       {!upcomingDeadlines.length&&<p className="empty-note">暂时没有临近的 Deadline。</p>}
     </section>
     <section className="card agenda-card">
@@ -502,7 +504,7 @@ function MonthPlan() {
         {nearbyDays.map(day => <button ref={day===selected?agendaActiveRef:null} type="button" className={day === selected ? "agenda-day-card active" : "agenda-day-card"} key={day} onClick={() => setSelected(day)}>
           <span>{viewMonthNumber} 月 {day} 日{planKey(day) === localDateKey() ? " · 今天" : ""}</span>
           {plansForDay(day).map((plan, index) => <div className="agenda-item" key={`${plan}-${index}`}><span className="agenda-dot work" /><div><b>{plan}</b><small>工作 · 全天</small></div></div>)}
-          {eventForDay(day).map(item => <div className="agenda-item" key={item.id}><span className={`agenda-dot ${item.type}`} /><div><b>{item.type === "deadline" ? `⚠ ${item.title}` : item.title}</b><small>{item.type === "deadline" ? "Deadline" : item.type === "range" ? `${item.start}—${item.end} 日` : "月度安排"}</small></div></div>)}
+          {eventForDay(day).map(item => <div className="agenda-item" key={item.id}><span className={`agenda-dot ${item.type}`} /><div><b>{item.emoji||"📌"} {item.title}</b><small>{item.type === "deadline" ? "Deadline" : item.type === "range" ? `${item.start}—${item.end} 日` : "月度安排"}</small></div></div>)}
           {!plansForDay(day).length && !eventForDay(day).length && <small className="empty-note">暂无安排</small>}
         </button>)}
       </div>
@@ -516,10 +518,11 @@ function MonthPlan() {
         <div className="section-heading"><div><span className="section-kicker">MONTH EVENT</span><h2 id="event-modal-title">添加重要时段</h2></div><button className="modal-close" type="button" aria-label="关闭" onClick={() => setShowEventModal(false)}>×</button></div>
         <form className="calendar-event-form" onSubmit={addCalendarEvent}>
           <div className="event-form-top"><input autoFocus value={eventDraft.title} onChange={event => setEventDraft(current => ({ ...current, title: event.target.value }))} placeholder="事件名称" /><select value={eventDraft.type} onChange={event => setEventDraft(current => ({ ...current, type: event.target.value }))}><option value="deadline">Deadline</option><option value="range">持续时段</option><option value="plan">普通安排</option></select></div>
+          <div className="event-custom-row"><label>Emoji<select value={eventDraft.emoji} onChange={event=>setEventDraft(current=>({...current,emoji:event.target.value}))}>{eventEmojiOptions.map(emoji=><option key={emoji}>{emoji}</option>)}</select></label><label>颜色<select value={eventDraft.color} onChange={event=>setEventDraft(current=>({...current,color:event.target.value}))}>{eventColorOptions.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</select></label></div>
           <div className="event-form-bottom"><label>开始<input type="number" min="1" max="31" value={eventDraft.start} onChange={event => setEventDraft(current => ({ ...current, start: event.target.value }))}/></label><label>结束<input type="number" min="1" max="31" value={eventDraft.end} onChange={event => setEventDraft(current => ({ ...current, end: event.target.value }))}/></label><button type="submit">添加到日历</button></div>
         </form>
         <div className="event-manage-list"><span className="section-kicker">已添加的重要时段</span>
-          {events.filter(item=>(item.month||"2026-07")===viewMonth).map(item=><div className="event-manage-row" key={item.id}><div><b>{item.title}</b><small>{item.start===item.end?`${item.start} 日`:`${item.start}—${item.end} 日`} · {item.type==="deadline"?"Deadline":item.type==="range"?"持续时段":"普通安排"}</small></div><button type="button" onClick={()=>setEvents(current=>current.filter(event=>event.id!==item.id))}>删除</button></div>)}
+          {events.filter(item=>(item.month||"2026-07")===viewMonth).map(item=><div className="event-manage-row" key={item.id}><div><b>{item.emoji||"📌"} {item.title}</b><small>{item.start===item.end?`${item.start} 日`:`${item.start}—${item.end} 日`} · {item.type==="deadline"?"Deadline":item.type==="range"?"持续时段":"普通安排"}</small></div><button type="button" onClick={()=>setEvents(current=>current.filter(event=>event.id!==item.id))}>删除</button></div>)}
           {!events.some(item=>(item.month||"2026-07")===viewMonth)&&<p className="empty-note">这个月还没有重要时段。</p>}
         </div>
       </section>
@@ -722,7 +725,7 @@ function HabitPage({ habits, setHabits }) {
     setPendingDelete(null);
   };
   return <>
-    <PageIntro eyebrow="LITTLE STEPS" icon="✿" title="习惯打卡" copy="写下今天的坚持，看见一个月里的点滴积累。" />
+    <PageIntro eyebrow="LITTLE STEPS" icon="✿" title="习惯打卡" copy="写下今天的坚持，看见点滴积累。" />
     <section className="card"><div className="section-heading"><h2>今日打卡</h2><div className="habit-heading-actions"><button className={editMode ? "mini-add active" : "mini-add secondary"} onClick={() => setEditMode(current => !current)}>{editMode ? "完成编辑" : "编辑"}</button><button className="mini-add" onClick={() => setShowHabitForm(current => !current)}>{showHabitForm ? "收起" : "＋ 新习惯"}</button></div></div>
       {showHabitForm && <form className="habit-create-form" onSubmit={addHabit}>
         <input value={habitDraft.name} onChange={event => setHabitDraft(current => ({ ...current, name: event.target.value }))} placeholder="习惯名称" />
@@ -906,19 +909,36 @@ function InspirationPage() {
   const [items, setItems] = usePersistentState("winnie-inspirations", []);
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState({ tag:"生活碎片", text:"" });
+  const [swipedIdea, setSwipedIdea] = useState(null);
+  const ideaSwipeStart = useRef(null);
   const tagTone = { "生活碎片":"pink", "好玩的梦":"lilac", "工作灵感":"blue", "想看的书":"mint", "其他":"peach" };
   const ideaCategories = ["生活碎片","好玩的梦","工作灵感","想看的书","其他"];
   const add = event => { event.preventDefault(); if(!draft.text.trim())return; setItems(current=>[{id:Date.now(),date:localDateKey(),...draft,text:draft.text.trim()},...current]); setDraft(current=>({...current,text:""})); setShowForm(false); };
+  const todayNumber = Date.parse(`${localDateKey()}T00:00:00Z`);
+  const recentItems = items.filter(item => {
+    const age = Math.floor((todayNumber - Date.parse(`${item.date}T00:00:00Z`)) / 86_400_000);
+    return age >= 0 && age < 7;
+  });
+  const startIdeaSwipe = event => { ideaSwipeStart.current = event.touches[0].clientX; };
+  const endIdeaSwipe = (event, id) => {
+    if (ideaSwipeStart.current === null) return;
+    const distance = event.changedTouches[0].clientX - ideaSwipeStart.current;
+    if (distance < -35) setSwipedIdea(id);
+    else if (distance > 25) setSwipedIdea(null);
+    ideaSwipeStart.current = null;
+  };
+  const toggleIdeaDone = id => setItems(current=>current.map(item=>item.id===id?{...item,completed:!item.completed}:item));
   return <>
     <PageIntro eyebrow="GROWTH · IDEAS" icon="✦" title="灵感暂存区" copy="先把一闪而过的念头接住，之后再慢慢整理。" />
     <section className="card inspiration-card"><div className="section-heading"><h2>灵感暂存区</h2><button className="mini-add" onClick={()=>setShowForm(current=>!current)}>＋ 记录</button></div>
       {showForm&&<form className="inspiration-form" onSubmit={add}><select value={draft.tag} onChange={event=>setDraft(current=>({...current,tag:event.target.value}))}>{ideaCategories.map(tag=><option key={tag}>{tag}</option>)}</select><textarea autoFocus rows="3" value={draft.text} onChange={event=>setDraft(current=>({...current,text:event.target.value}))} placeholder="记下刚刚想到的内容…" /><button type="submit">保存灵感</button></form>}
-      <div className="inspiration-list">{items.map(item=><article key={item.id}><div><span className={`idea-tag ${tagTone[item.tag]||"peach"}`}>{item.tag}</span><small>{item.date}</small></div><p>{item.text}</p><button onClick={()=>setItems(current=>current.filter(value=>value.id!==item.id))}>删除</button></article>)}</div>
+      <div className="inspiration-list">{recentItems.map(item=><article key={item.id}><div><span className={`idea-tag ${tagTone[item.tag]||"peach"}`}>{item.tag}</span><small>{item.date}</small></div><p className={item.completed?"completed":""}>{item.text}</p></article>)}</div>
+      {!recentItems.length&&<p className="empty-note">最近 7 天还没有新灵感。</p>}
     </section>
     <section className="idea-category-grid">
       {ideaCategories.map(category => {
         const categoryItems = items.filter(item => item.tag === category);
-        return <article className={`idea-category-card ${tagTone[category]}`} key={category}><div><h2>{category}</h2><span>{categoryItems.length} 条</span></div>{categoryItems.map(item=><p key={item.id}>{item.text}<small>{item.date}</small></p>)}{!categoryItems.length&&<small className="idea-category-empty">还没有记录</small>}</article>;
+        return <article className={`idea-category-card ${tagTone[category]}`} key={category}><div><h2>{category}</h2><span>{categoryItems.length} 条</span></div>{categoryItems.map(item=><div className={swipedIdea===item.id?"idea-record-swipe revealed":"idea-record-swipe"} key={item.id} onTouchStart={startIdeaSwipe} onTouchEnd={event=>endIdeaSwipe(event,item.id)}><button className="idea-delete" onClick={()=>{setItems(current=>current.filter(value=>value.id!==item.id));setSwipedIdea(null);}}>删除</button><div className={item.completed?"idea-record completed":"idea-record"}><p>{item.text}<small>{item.date}</small></p><button onClick={()=>toggleIdeaDone(item.id)}>{item.completed?"取消划线":"划线"}</button></div></div>)}{!categoryItems.length&&<small className="idea-category-empty">还没有记录</small>}</article>;
       })}
     </section>
   </>;
