@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import CloudSyncPage from "./cloud-sync";
 
 const navGroups = [
   {
@@ -161,6 +162,13 @@ export default function TodayPage() {
             </div>
           ))}
         </nav>
+        <button
+          className={activeNav === "云同步" ? "nav-button cloud-nav active" : "nav-button cloud-nav"}
+          onClick={() => { setActiveNav("云同步"); setOpenGroup(null); }}
+          aria-label="云同步"
+        >
+          <span>☁</span><small>同步</small>
+        </button>
         <div className="avatar" aria-label="用户头像">温</div>
       </aside>
 
@@ -315,6 +323,7 @@ function FeaturePage({ page, tasks, setTasks, habits, setHabits, health, setHeal
     "习惯": <HabitPage habits={habits} setHabits={setHabits} />,
     "数据": <DataPage health={health} setHealth={setHealth} />,
     "吃饭": <MealPage mealRecords={mealRecords} setMealRecords={setMealRecords} />
+    ,"云同步": <CloudSyncPage />
   };
   return <section className="content feature-content">{pageMap[page]}</section>;
 }

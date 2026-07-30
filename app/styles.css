@@ -114,6 +114,22 @@ button { color: inherit; }
   font-weight: 800;
 }
 
+.cloud-nav { margin: 8px 0; }
+.cloud-sync-card { display: grid; gap: 15px; }
+.sync-note { margin: 0; padding: 12px; border-radius: 14px; color: #887681; background: #fff7f9; font-size: 11px; line-height: 1.7; }
+.sync-state { max-width: 48%; color: var(--muted); font-size: 10px; text-align: right; }
+.sync-state.success { color: #3f8c79; }
+.sync-state.error { color: #c9516d; }
+.sync-field { display: grid; gap: 7px; color: #776872; font-size: 11px; font-weight: 800; }
+.sync-field input { width: 100%; padding: 12px 13px; border: 1px solid var(--line); border-radius: 13px; outline: 0; color: var(--ink); background: #fffdfd; }
+.sync-field input:focus { border-color: #eda8ba; box-shadow: 0 0 0 3px #fff0f4; }
+.sync-grid { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
+.sync-primary, .sync-actions button { border: 0; border-radius: 13px; padding: 12px; cursor: pointer; font-weight: 800; }
+.sync-primary { color: white; background: linear-gradient(135deg, var(--rose), var(--rose-deep)); }
+.sync-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.sync-actions button { color: var(--rose-deep); background: var(--blush); }
+.sync-primary:disabled, .sync-actions button:disabled { cursor: not-allowed; opacity: .45; }
+
 .content {
   min-width: 0;
   padding: max(18px, env(safe-area-inset-top)) 15px calc(34px + env(safe-area-inset-bottom));
