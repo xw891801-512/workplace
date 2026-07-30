@@ -313,6 +313,8 @@ button { color: inherit; }
 .month-grid .outside-day small { font-size:6px; }
 .calendar-event { max-width:100%; overflow:hidden; padding:2px 4px; border-radius:5px; font-size:7.5px; font-weight:700; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
 .calendar-event.deadline { color:#95536a; background:rgba(247,174,195,.58); }.calendar-event.range { color:#755c8f; background:rgba(207,185,231,.62); }.calendar-event.plan { color:#55758f; background:rgba(177,217,238,.62); }
+.calendar-event.tone-rose { color:#95536a; background:rgba(247,174,195,.58); }.calendar-event.tone-lilac { color:#755c8f; background:rgba(207,185,231,.62); }
+.calendar-event.tone-blue { color:#55758f; background:rgba(177,217,238,.62); }.calendar-event.tone-mint { color:#557f73; background:rgba(184,225,208,.68); }.calendar-event.tone-peach { color:#956d5c; background:rgba(244,207,184,.68); }
 .calendar-event.continuous { position:relative; z-index:4; align-self:flex-start; max-width:none; min-height:15px; padding:2px 6px; border-radius:5px; overflow:hidden; pointer-events:none; text-align:left; box-shadow:0 2px 5px rgba(122,91,151,.08); }
 .month-grid button.range-row-start { z-index:3; }
 .month-grid button.in-range { background:#faf7fb; }
@@ -330,7 +332,8 @@ button { color: inherit; }
 .deadline-row { display:grid; grid-template-columns:26px minmax(0,1fr) auto; align-items:center; gap:8px; padding:10px 2px; border-bottom:1px solid #f3e6ea; }
 .deadline-row:last-child { border-bottom:0; }
 .deadline-icon { width:24px; height:24px; display:grid; place-items:center; border-radius:8px; color:#c47790; background:#fff0f4; }
-.deadline-row > div { display:grid; gap:3px; }.deadline-row b { font-size:11px; }.deadline-row small { color:#a29198; font-size:9px; }
+.deadline-icon.tone-rose { background:#f9dfe7; }.deadline-icon.tone-lilac { background:#e9e1f5; }.deadline-icon.tone-blue { background:#dfeef7; }.deadline-icon.tone-mint { background:#dff0e8; }.deadline-icon.tone-peach { background:#f7e6da; }
+.deadline-row > div { min-width:0; }.deadline-row b { font-size:11px; line-height:1.45; }.deadline-row small { color:#a29198; font-size:9px; font-weight:500; }
 .deadline-row strong { color:#bd8798; font-size:9px; font-weight:700; }
 .agenda-item { display:flex; align-items:center; gap:10px; padding:12px; border-radius:15px; background:#fff8fa; }
 .agenda-day-card .agenda-item { padding:9px; background:rgba(255,255,255,.72); }
@@ -346,9 +349,10 @@ button { color: inherit; }
 .inline-add-form.compact { margin-top:9px; }
 .calendar-event-form { display:grid; gap:8px; margin-top:12px; padding:12px; border-radius:16px; background:#fff7fa; }
 .event-form-top, .event-form-bottom { display:grid; gap:7px; }.event-form-top { grid-template-columns:minmax(0,1fr) 95px; }.event-form-bottom { grid-template-columns:64px 64px minmax(0,1fr); align-items:end; }
-.calendar-event-form input, .calendar-event-form select { min-width:0; width:100%; padding:9px 8px; border:1px solid #ead9df; border-radius:10px; outline:none; background:white; color:var(--ink); font-size:9px; }
+.calendar-event-form input, .calendar-event-form select { min-width:0; width:100%; padding:8px; border:1px solid #ead9df; border-radius:10px; outline:none; background:white; color:var(--ink); font-size:16px; }
 .calendar-event-form label { display:grid; gap:3px; color:#95858d; font-size:8px; }
 .calendar-event-form button { height:34px; border:0; border-radius:10px; color:white; background:var(--rose); font-size:9px; font-weight:800; cursor:pointer; }
+.event-custom-row { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
 .modal-backdrop { position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:20px 15px 20px 85px; background:rgba(66,48,58,.22); backdrop-filter:blur(5px); }
 .event-modal { width:100%; max-width:420px; max-height:82dvh; overflow-y:auto; padding:16px; border-radius:22px; background:#fffdfd; box-shadow:0 20px 55px rgba(91,55,69,.2); }
 .event-modal h2 { margin:5px 0 0; }
@@ -484,13 +488,20 @@ button { color: inherit; }
 .idea-tag.blue { color:#587995; background:#dfeef7; }
 .idea-tag.mint { color:#587f72; background:#dff0e8; }
 .idea-tag.peach { color:#9a715d; background:#f7e6da; }
-.inspiration-list article p { margin:9px 48px 0 0; font-size:11px; }.inspiration-list article button { position:absolute; right:10px; bottom:9px; border:0; color:#9c8794; background:transparent; font-size:9px; }
+.inspiration-list article p { margin:9px 0 0; font-size:11px; }.inspiration-list article p.completed { color:#aa9ea3; text-decoration:line-through; }
 .idea-category-grid { display:grid; gap:10px; }
 .idea-category-card { padding:15px; border:1px solid rgba(220,205,212,.55); border-radius:20px; box-shadow:0 10px 24px rgba(126,91,105,.05); }
 .idea-category-card > div { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
 .idea-category-card h2 { margin:0; font-size:14px; }.idea-category-card > div > span { color:#a4939b; font-size:9px; }
 .idea-category-card p { display:flex; justify-content:space-between; gap:8px; margin:0; padding:8px 0; border-bottom:1px dashed rgba(181,157,169,.3); font-size:10px; line-height:1.5; }
 .idea-category-card p:last-of-type { border-bottom:0; }.idea-category-card p small { flex:0 0 auto; color:#a99ba1; font-size:8px; }
+.idea-record-swipe { position:relative; overflow:hidden; border-radius:9px; }
+.idea-delete { position:absolute; top:0; right:0; width:56px; height:100%; border:0; color:white; background:#d97994; opacity:0; pointer-events:none; font-size:9px; font-weight:800; }
+.idea-record-swipe.revealed .idea-delete { opacity:1; pointer-events:auto; }
+.idea-record { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px; background:rgba(255,255,255,.72); transition:transform .2s ease; }
+.idea-record-swipe.revealed .idea-record { transform:translateX(-56px); }
+.idea-record > button { margin-right:3px; padding:5px 7px; border:1px solid rgba(190,164,176,.35); border-radius:8px; color:#9b7180; background:rgba(255,255,255,.7); font-size:8px; }
+.idea-record.completed p { color:#a99da2; text-decoration:line-through; }
 .idea-category-empty { color:#ab9fa4; font-size:9px; }
 .idea-category-card.pink { background:#fff7f9; }.idea-category-card.pink h2 { color:#a96379; }
 .idea-category-card.lilac { background:#fbf9fe; }.idea-category-card.lilac h2 { color:#786797; }
