@@ -14,6 +14,7 @@ const DEFAULT_CONFIG = {
   rememberToken: false,
   autoSync: false
 };
+let syncWriteInFlight = false;
 
 function encodeBase64(value) {
   const bytes = new TextEncoder().encode(value);
@@ -124,26 +125,41 @@ async function readRemoteFile(config, token) {
 }
 
 async function uploadFile(config, token, expectedSha) {
-  const latest = await readRemoteFile(config, token);
-  if ((expectedSha || null) !== (latest?.sha || null)) {
-    const error = new Error("云端数据已被其他设备修改，已停止自动覆盖");
-    error.code = "CONFLICT";
+  if (syncWriteInFlight) {
+    const error = new Error("已有同步任务正在进行，请稍候");
+    error.code = "BUSY";
     throw error;
   }
-  const { owner, repo } = parseRepository(config.repository);
-  const path = config.path.split("/").map(encodeURIComponent).join("/");
-  const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`, {
-    method: "PUT",
-    headers: { ...githubHeaders(token), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message: `Sync workbench ${new Date().toISOString()}`,
-      content: encodeBase64(JSON.stringify(collectWorkbenchData(), null, 2)),
-      branch: config.branch,
-      ...(latest?.sha ? { sha: latest.sha } : {})
-    })
-  });
-  if (!response.ok) throw new Error(`GitHub 上传失败（${response.status}）`);
-  return response.json();
+  syncWriteInFlight = true;
+  try {
+    const latest = await readRemoteFile(config, token);
+    if ((expectedSha || null) !== (latest?.sha || null)) {
+      const error = new Error("云端数据已被其他设备修改，已停止自动覆盖");
+      error.code = "CONFLICT";
+      throw error;
+    }
+    const { owner, repo } = parseRepository(config.repository);
+    const path = config.path.split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`, {
+      method: "PUT",
+      headers: { ...githubHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: `Sync workbench ${new Date().toISOString()}`,
+        content: encodeBase64(JSON.stringify(collectWorkbenchData(), null, 2)),
+        branch: config.branch,
+        ...(latest?.sha ? { sha: latest.sha } : {})
+      })
+    });
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.message
+        ? `GitHub 上传失败（${response.status}）：${details.message}`
+        : `GitHub 上传失败（${response.status}）`);
+    }
+    return response.json();
+  } finally {
+    syncWriteInFlight = false;
+  }
 }
 
 export function CloudAutoSync() {
@@ -188,6 +204,7 @@ export function CloudAutoSync() {
           lastSyncedAt: new Date().toISOString()
         });
       } catch (error) {
+        if (error.code === "BUSY") return;
         saveSyncState({
           kind: error.code === "CONFLICT" ? "conflict" : "error",
           message: error.message
