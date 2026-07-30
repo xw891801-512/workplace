@@ -477,7 +477,12 @@ button { color: inherit; }
 .inspiration-form { display:grid; gap:7px; margin:12px 0; }.inspiration-form select { padding:8px; border:1px solid #eadfe3; border-radius:9px; color:var(--ink); background:white; font-size:10px; }
 .inspiration-form button { padding:9px; border:0; border-radius:10px; color:white; background:var(--rose); font-size:10px; font-weight:800; }
 .inspiration-list { display:grid; gap:8px; margin-top:12px; }.inspiration-list article { position:relative; padding:11px; border-radius:14px; background:#fff1f5; }
-.inspiration-list article > div { display:flex; justify-content:space-between; }.inspiration-list article span { padding:4px 7px; border-radius:99px; color:#a7697e; background:#fffafd; font-size:9px; }.inspiration-list article small { color:#aa969e; font-size:8px; }
+.inspiration-list article > div { display:flex; justify-content:space-between; }.inspiration-list article .idea-tag { padding:5px 8px; border-radius:99px; font-size:10px; font-weight:700; }.inspiration-list article small { color:#aa969e; font-size:8px; }
+.idea-tag.pink { color:#a96379; background:#f9dfe7; }
+.idea-tag.lilac { color:#786797; background:#e9e1f5; }
+.idea-tag.blue { color:#587995; background:#dfeef7; }
+.idea-tag.mint { color:#587f72; background:#dff0e8; }
+.idea-tag.peach { color:#9a715d; background:#f7e6da; }
 .inspiration-list article p { margin:9px 48px 0 0; font-size:11px; }.inspiration-list article button { position:absolute; right:10px; bottom:9px; border:0; color:#9c8794; background:transparent; font-size:9px; }
 .trend-range-tabs { display:flex; gap:5px; margin-top:13px; padding:4px; border-radius:13px; background:#faf3f6; }
 .trend-range-tabs button { flex:1; padding:7px; border:0; border-radius:10px; color:#8f8188; background:transparent; font-size:9px; cursor:pointer; }
