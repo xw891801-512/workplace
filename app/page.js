@@ -75,7 +75,7 @@ function NavIcon({ kind }) {
 
 export default function TodayPage() {
   const [activeNav, setActiveNav] = useState("今天");
-  const [openGroup, setOpenGroup] = useState(null);
+  const [openGroups, setOpenGroups] = useState({ 计划: false, 打卡: false });
   const [tasks, setTasks] = useState(starterTasks);
   const [habits, setHabits] = useState(habitSeed);
   const [health, setHealth] = useState({
@@ -95,6 +95,7 @@ export default function TodayPage() {
   const [activeGroup, setActiveGroup] = useState("全部");
   const [storageReady, setStorageReady] = useState(false);
   const lastWorkbenchSave = useRef(null);
+  const [greeting, setGreeting] = useState("你好");
 
   useEffect(() => {
     try {
@@ -121,6 +122,20 @@ export default function TodayPage() {
     }
     lastWorkbenchSave.current = serialized;
   }, [tasks, habits, health, mealRecords, storageReady]);
+
+  useEffect(() => {
+    const updateGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour >= 5 && hour < 11) setGreeting("早上好");
+      else if (hour >= 11 && hour < 14) setGreeting("中午好");
+      else if (hour >= 14 && hour < 18) setGreeting("下午好");
+      else if (hour >= 18 && hour < 23) setGreeting("晚上好");
+      else setGreeting("深夜了");
+    };
+    updateGreeting();
+    const timer = window.setInterval(updateGreeting, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const completed = tasks.filter((task) => task.done).length;
   const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
@@ -150,28 +165,28 @@ export default function TodayPage() {
     <main className="app-shell">
       <CloudAutoSync />
       <aside className="side-rail" aria-label="主要导航">
-        <button className="brand" aria-label="工作台首页" onClick={() => { setActiveNav("今天"); setOpenGroup(null); }}>W</button>
+        <button className="brand" aria-label="工作台首页" onClick={() => setActiveNav("今天")}>W</button>
         <nav>
           <button
             className={activeNav === "今天" ? "nav-button active" : "nav-button"}
-            onClick={() => { setActiveNav("今天"); setOpenGroup(null); }}
+            onClick={() => setActiveNav("今天")}
             aria-label="今天"
           >
             <span>⌂</span><small>今天</small>
           </button>
           {navGroups.map((group) => (
-            <div className={openGroup === group.label ? "nav-group open" : "nav-group"} key={group.label}>
+            <div className={openGroups[group.label] ? "nav-group open" : "nav-group"} key={group.label}>
               <button
                 className={group.items.some(item => item.label === activeNav) ? "nav-button nav-parent active" : "nav-button nav-parent"}
-                onClick={() => setOpenGroup(current => current === group.label ? null : group.label)}
-                aria-expanded={openGroup === group.label}
+                onClick={() => setOpenGroups(current => ({ ...current, [group.label]: !current[group.label] }))}
+                aria-expanded={openGroups[group.label]}
                 aria-label={`${group.label}菜单`}
               >
                 <span>{group.label === "计划" ? "▤" : <NavIcon kind="check" />}</span>
                 <small>{group.label}</small>
-                <i>{openGroup === group.label ? "−" : "+"}</i>
+                <i>{openGroups[group.label] ? "−" : "+"}</i>
               </button>
-              {openGroup === group.label && <div className="nav-children">{group.items.map((item) => (
+              {openGroups[group.label] && <div className="nav-children">{group.items.map((item) => (
                 <button
                   key={item.label}
                   className={activeNav === item.label ? "nav-child active" : "nav-child"}
@@ -199,7 +214,7 @@ export default function TodayPage() {
         <header className="hero">
           <div>
             <p className="eyebrow">THURSDAY · JUL 30</p>
-            <h1>早上好，Winnie <span>☁</span></h1>
+            <h1>{greeting}，Winnie <span>☁</span></h1>
             <p className="hero-copy">慢慢来，也是在好好生活。</p>
           </div>
           <div className="cloud cloud-one" />
@@ -362,6 +377,7 @@ function PageIntro({ eyebrow, title, copy, icon }) {
 
 function MonthPlan() {
   const [selected, setSelected] = useState(30);
+  const [showEventModal, setShowEventModal] = useState(false);
   const [plans, setPlans] = usePersistentState("winnie-month-plans", { 30: ["完成工作台页面规划"] });
   const [draft, setDraft] = useState("");
   const [events, setEvents] = usePersistentState("winnie-month-events", [
@@ -383,12 +399,14 @@ function MonthPlan() {
     const end = Math.max(Number(eventDraft.start), Number(eventDraft.end));
     setEvents(current => [...current, { ...eventDraft, id: Date.now(), title: eventDraft.title.trim(), start, end }]);
     setEventDraft(current => ({ ...current, title: "" }));
+    setShowEventModal(false);
   };
   const eventForDay = day => events.filter(item => day >= item.start && day <= item.end);
+  const nearbyDays = Array.from({ length: 7 }, (_, index) => selected - 3 + index).filter(day => day >= 1 && day <= 31);
   return <>
     <PageIntro eyebrow="PLAN · JULY" icon="▦" title="月日历" copy="把重要安排和大的 deadline 放进这个月。" />
     <section className="card calendar-card">
-      <div className="section-heading"><h2>2026 年 7 月</h2><span className="count-pill">今天 30</span></div>
+      <div className="section-heading"><h2>2026 年 7 月</h2><div className="calendar-heading-actions"><span className="count-pill">今天 30</span><button className="calendar-add" type="button" aria-label="添加重要时段" onClick={() => setShowEventModal(true)}>＋</button></div></div>
       <div className="week-labels">{["一","二","三","四","五","六","日"].map(d => <span key={d}>{d}</span>)}</div>
       <div className="month-grid">
         <span className="outside-day">29<small>六月</small></span><span className="outside-day">30</span>
@@ -396,29 +414,36 @@ function MonthPlan() {
           const dayEvents = eventForDay(day);
           return <button key={day} className={`${selected === day ? "selected " : ""}${day === 30 ? "is-today " : ""}${(plans[day]?.length || dayEvents.length) ? "has-plan " : ""}${dayEvents.some(item => item.type === "range") ? "in-range" : ""}`} onClick={() => setSelected(day)}>
             <b>{day}</b>
-            {dayEvents.slice(0, 1).map(item => <small className={`calendar-event ${item.type}`} key={item.id}>{item.type === "deadline" ? "!" : item.title}</small>)}
+            {dayEvents.slice(0, 1).map(item => <small className={`calendar-event ${item.type}`} title={item.title} key={item.id}>{item.type === "deadline" ? `⚠ ${item.title}` : item.title}</small>)}
           </button>;
         })}
         <span className="outside-day">1<small>八月</small></span><span className="outside-day">2</span>
       </div>
     </section>
-    <section className="card event-editor-card">
-      <div className="section-heading"><div><span className="section-kicker">MONTH EVENT</span><h2>添加重要时段</h2></div><span className="count-pill">{events.length} 项</span></div>
-      <form className="calendar-event-form" onSubmit={addCalendarEvent}>
-        <div className="event-form-top"><input value={eventDraft.title} onChange={event => setEventDraft(current => ({ ...current, title: event.target.value }))} placeholder="事件名称" /><select value={eventDraft.type} onChange={event => setEventDraft(current => ({ ...current, type: event.target.value }))}><option value="deadline">Deadline</option><option value="range">持续时段</option><option value="plan">普通安排</option></select></div>
-        <div className="event-form-bottom"><label>开始<input type="number" min="1" max="31" value={eventDraft.start} onChange={event => setEventDraft(current => ({ ...current, start: event.target.value }))}/></label><label>结束<input type="number" min="1" max="31" value={eventDraft.end} onChange={event => setEventDraft(current => ({ ...current, end: event.target.value }))}/></label><button type="submit">添加到日历</button></div>
-      </form>
-    </section>
     <section className="card agenda-card">
-      <span className="section-kicker">SELECTED DAY</span><h2>7 月 {selected} 日</h2>
-      {(plans[selected] || []).map((plan, index) => <div className="agenda-item" key={`${plan}-${index}`}><span className="agenda-dot work" /><div><b>{plan}</b><small>工作 · 全天</small></div></div>)}
-      {eventForDay(selected).map(item => <div className="agenda-item" key={item.id}><span className={`agenda-dot ${item.type}`} /><div><b>{item.title}</b><small>{item.type === "deadline" ? "Deadline" : item.type === "range" ? `${item.start}—${item.end} 日` : "月度安排"}</small></div></div>)}
-      {!plans[selected]?.length && !eventForDay(selected).length && <p className="empty-note">这一天还没有安排。</p>}
+      <span className="section-kicker">DAILY OVERVIEW</span><h2>前后日期事项</h2>
+      <div className="agenda-strip">
+        {nearbyDays.map(day => <button type="button" className={day === selected ? "agenda-day-card active" : "agenda-day-card"} key={day} onClick={() => setSelected(day)}>
+          <span>7 月 {day} 日{day === 30 ? " · 今天" : ""}</span>
+          {(plans[day] || []).map((plan, index) => <div className="agenda-item" key={`${plan}-${index}`}><span className="agenda-dot work" /><div><b>{plan}</b><small>工作 · 全天</small></div></div>)}
+          {eventForDay(day).map(item => <div className="agenda-item" key={item.id}><span className={`agenda-dot ${item.type}`} /><div><b>{item.type === "deadline" ? `⚠ ${item.title}` : item.title}</b><small>{item.type === "deadline" ? "Deadline" : item.type === "range" ? `${item.start}—${item.end} 日` : "月度安排"}</small></div></div>)}
+          {!plans[day]?.length && !eventForDay(day).length && <small className="empty-note">暂无安排</small>}
+        </button>)}
+      </div>
       <form className="inline-add-form" onSubmit={addPlan}>
         <input value={draft} onChange={event => setDraft(event.target.value)} placeholder={`添加 7 月 ${selected} 日的安排`} />
         <button type="submit">添加</button>
       </form>
     </section>
+    {showEventModal && <div className="modal-backdrop" role="presentation" onClick={() => setShowEventModal(false)}>
+      <section className="event-modal" role="dialog" aria-modal="true" aria-labelledby="event-modal-title" onClick={event => event.stopPropagation()}>
+        <div className="section-heading"><div><span className="section-kicker">MONTH EVENT</span><h2 id="event-modal-title">添加重要时段</h2></div><button className="modal-close" type="button" aria-label="关闭" onClick={() => setShowEventModal(false)}>×</button></div>
+        <form className="calendar-event-form" onSubmit={addCalendarEvent}>
+          <div className="event-form-top"><input autoFocus value={eventDraft.title} onChange={event => setEventDraft(current => ({ ...current, title: event.target.value }))} placeholder="事件名称" /><select value={eventDraft.type} onChange={event => setEventDraft(current => ({ ...current, type: event.target.value }))}><option value="deadline">Deadline</option><option value="range">持续时段</option><option value="plan">普通安排</option></select></div>
+          <div className="event-form-bottom"><label>开始<input type="number" min="1" max="31" value={eventDraft.start} onChange={event => setEventDraft(current => ({ ...current, start: event.target.value }))}/></label><label>结束<input type="number" min="1" max="31" value={eventDraft.end} onChange={event => setEventDraft(current => ({ ...current, end: event.target.value }))}/></label><button type="submit">添加到日历</button></div>
+        </form>
+      </section>
+    </div>}
   </>;
 }
 
@@ -435,6 +460,21 @@ function WeekPlan() {
   ]);
   const [taskDay, setTaskDay] = useState("30 周四");
   const [taskDraft, setTaskDraft] = useState("");
+  const [swipedId, setSwipedId] = useState(null);
+  const swipeStartX = useRef(null);
+  const addPriority = () => setPriorities(current => [...current, { id: Date.now(), text: "新的重要事项", done: false }]);
+  const autoGrow = event => {
+    event.currentTarget.style.height = "auto";
+    event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
+  };
+  const startSwipe = event => { swipeStartX.current = event.touches[0].clientX; };
+  const endSwipe = (event, id) => {
+    if (swipeStartX.current === null) return;
+    const distance = event.changedTouches[0].clientX - swipeStartX.current;
+    if (distance < -35) setSwipedId(id);
+    else if (distance > 25) setSwipedId(null);
+    swipeStartX.current = null;
+  };
   const addWeekTask = event => {
     event.preventDefault();
     if (!taskDraft.trim()) return;
@@ -443,15 +483,18 @@ function WeekPlan() {
   };
   return <>
     <PageIntro eyebrow="WEEK 31" icon="▤" title="周计划表" copy="先抓住这一周最重要的几件事。" />
-    <section className="card focus-card"><span className="section-kicker">THIS WEEK</span><h2>本周三件重要的事</h2>
+    <section className="card focus-card"><div className="section-heading"><div><span className="section-kicker">THIS WEEK</span><h2>本周重要的事</h2></div><button className="priority-add" onClick={addPriority} aria-label="添加本周重要事项">＋</button></div>
       {priorities.map(item => <div className={item.done ? "editable-plan priority done" : "editable-plan priority"} key={item.id}>
-        <input value={item.text} onChange={event => setPriorities(v => v.map(x => x.id === item.id ? {...x,text:event.target.value}:x))} aria-label="编辑本周重要事项" />
+        <textarea rows="1" value={item.text} onInput={autoGrow} onChange={event => setPriorities(v => v.map(x => x.id === item.id ? {...x,text:event.target.value}:x))} aria-label="编辑本周重要事项" />
         <button className="round-check" aria-label={item.done ? "取消完成" : "标记完成"} onClick={() => setPriorities(v => v.map(x => x.id === item.id ? {...x,done:!x.done}:x))} />
       </div>)}
     </section>
     <section className="card week-card"><div className="section-heading"><h2>7 月 27 日 · 8 月 2 日</h2><span className="count-pill">{weekTasks.filter(item => item.done).length}/{weekTasks.length}</span></div>
       {days.map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b>{day}</b><div className="week-day-tasks">
-        {weekTasks.filter(task => task.day.includes(day.slice(0, 2))).map(task => <div className={task.done ? "week-task done" : "week-task"} key={task.id}><input value={task.text} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/><button className="delete-mini" onClick={() => setWeekTasks(v => v.filter(x => x.id !== task.id))}>×</button><button className="round-check" aria-label={task.done ? "取消完成" : "标记完成"} onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}/></div>)}
+        {weekTasks.filter(task => task.day.includes(day.slice(0, 2))).map(task => <div className={swipedId === task.id ? "swipe-task revealed" : "swipe-task"} key={task.id} onTouchStart={startSwipe} onTouchEnd={event => endSwipe(event, task.id)}>
+          <button className="swipe-delete" onClick={() => { setWeekTasks(v => v.filter(x => x.id !== task.id)); setSwipedId(null); }}>删除</button>
+          <div className={task.done ? "week-task done" : "week-task"}><textarea rows="1" value={task.text} onInput={autoGrow} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/><button className="round-check" aria-label={task.done ? "取消完成" : "标记完成"} onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}/></div>
+        </div>)}
         {!weekTasks.some(task => task.day.includes(day.slice(0, 2))) && <span className="empty-day">暂无任务</span>}
       </div></div>)}
       <form className="week-add-form" onSubmit={addWeekTask}><select value={taskDay} onChange={event => setTaskDay(event.target.value)}>{days.map(day => <option key={day}>{day}</option>)}</select><input value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder="输入本周任务" /><button type="submit">添加</button></form>
@@ -503,9 +546,22 @@ const habitSeed = [
   { id:"sport", icon:"♥", name:"运动", color:"coral", days:[1,4,7,11,14,18,21,25,28] }
 ];
 
+const habitColorOptions = [
+  { value: "coral", label: "樱花粉" },
+  { value: "blue", label: "雾霾蓝" },
+  { value: "lilac", label: "淡紫色" },
+  { value: "mint", label: "薄荷绿" },
+  { value: "peach", label: "蜜桃色" },
+  { value: "butter", label: "奶油黄" },
+  { value: "mauve", label: "灰豆沙" },
+  { value: "sage", label: "鼠尾草绿" }
+];
+
 function HabitPage({ habits, setHabits }) {
   const today = 30;
   const [showHabitForm, setShowHabitForm] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [habitDraft, setHabitDraft] = useState({ name: "", icon: "✨", color: "coral" });
   const toggleToday = id => setHabits(v=>v.map(h=>h.id===id?{...h,days:h.days.includes(today)?h.days.filter(d=>d!==today):[...h.days,today]}:h));
   const toggleDay = (id, day) => setHabits(v => v.map(h => h.id === id ? { ...h, days: h.days.includes(day) ? h.days.filter(d => d !== day) : [...h.days, day] } : h));
@@ -516,22 +572,32 @@ function HabitPage({ habits, setHabits }) {
     setHabitDraft({ name: "", icon: "✨", color: "coral" });
     setShowHabitForm(false);
   };
+  const updateHabit = (id, patch) => setHabits(current => current.map(habit => habit.id === id ? { ...habit, ...patch } : habit));
+  const deleteHabit = id => {
+    if (pendingDelete !== id) {
+      setPendingDelete(id);
+      return;
+    }
+    setHabits(current => current.filter(habit => habit.id !== id));
+    setPendingDelete(null);
+  };
   return <>
     <PageIntro eyebrow="LITTLE STEPS" icon="✿" title="习惯打卡" copy="写下今天的坚持，看见一个月里的点滴积累。" />
-    <section className="card"><div className="section-heading"><h2>今日打卡</h2><button className="mini-add" onClick={() => setShowHabitForm(current => !current)}>{showHabitForm ? "收起" : "＋ 新习惯"}</button></div>
+    <section className="card"><div className="section-heading"><h2>今日打卡</h2><div className="habit-heading-actions"><button className={editMode ? "mini-add active" : "mini-add secondary"} onClick={() => setEditMode(current => !current)}>{editMode ? "完成编辑" : "编辑"}</button><button className="mini-add" onClick={() => setShowHabitForm(current => !current)}>{showHabitForm ? "收起" : "＋ 新习惯"}</button></div></div>
       {showHabitForm && <form className="habit-create-form" onSubmit={addHabit}>
         <input value={habitDraft.name} onChange={event => setHabitDraft(current => ({ ...current, name: event.target.value }))} placeholder="习惯名称" />
-        <div className="habit-options"><label>图标<select value={habitDraft.icon} onChange={event => setHabitDraft(current => ({ ...current, icon: event.target.value }))}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select></label><label>颜色<select value={habitDraft.color} onChange={event => setHabitDraft(current => ({ ...current, color: event.target.value }))}><option value="coral">樱花粉</option><option value="blue">雾霾蓝</option><option value="lilac">淡紫色</option><option value="mint">薄荷绿</option></select></label></div>
+        <div className="habit-options"><label>图标<select value={habitDraft.icon} onChange={event => setHabitDraft(current => ({ ...current, icon: event.target.value }))}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select></label><label>颜色<select value={habitDraft.color} onChange={event => setHabitDraft(current => ({ ...current, color: event.target.value }))}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label></div>
         <button type="submit">创建习惯</button>
       </form>}
-      <div className="habit-today">{habits.map(h=><button key={h.id} className={h.days.includes(today)?"habit-pill checked":"habit-pill"} onClick={()=>toggleToday(h.id)}><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{h.days.includes(today)?"今天已打卡":"点击打卡"}</small></button>)}</div>
+      {editMode && <div className="habit-edit-list">{habits.map(habit => <div className="habit-edit-row" key={habit.id}><input value={habit.name} onChange={event => updateHabit(habit.id, { name: event.target.value })}/><select value={habit.icon} onChange={event => updateHabit(habit.id, { icon: event.target.value })}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select><select value={habit.color} onChange={event => updateHabit(habit.id, { color: event.target.value })}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select><button className={pendingDelete === habit.id ? "confirm-delete" : ""} onClick={() => deleteHabit(habit.id)}>{pendingDelete === habit.id ? "确认" : "删除"}</button></div>)}</div>}
+      <div className="habit-today">{habits.map(h=><button key={h.id} disabled={!editMode} className={`${h.days.includes(today)?"habit-pill checked":"habit-pill"}${editMode ? " editable" : ""}`} onClick={()=>toggleToday(h.id)}><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{editMode ? (h.days.includes(today)?"点击取消":"点击打卡") : (h.days.includes(today)?"今天已打卡":"未打卡")}</small></button>)}</div>
     </section>
     <section className="card heatmap-card"><div className="section-heading"><div><span className="section-kicker">JULY</span><h2>本月打卡</h2></div><span className="count-pill">30 天</span></div>
       {habits.map(h=><div className="habit-calendar" key={h.id}><div className="habit-title"><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{h.days.length} 天</small></div>
         <div className="heat-weekdays">{["一","二","三","四","五","六","日"].map(day => <span key={day}>{day}</span>)}</div>
         <div className={`heat-grid ${h.color}`}>
           <span className="blank" /><span className="blank" />
-          {Array.from({length:31},(_,i)=><button type="button" onClick={() => toggleDay(h.id, i + 1)} className={`${h.days.includes(i+1)?"hit ":""}${i+1===today?"today":""}`} key={i}>{i+1}</button>)}
+          {Array.from({length:31},(_,i)=><button type="button" disabled={!editMode} onClick={() => toggleDay(h.id, i + 1)} className={`${h.days.includes(i+1)?"hit ":""}${i+1===today?"today ":""}${editMode?"editable":""}`} key={i}>{i+1}</button>)}
         </div>
       </div>)}
     </section>
