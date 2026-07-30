@@ -65,9 +65,9 @@ export default function TodayPage() {
     morning: "52.6",
     evening: "",
     sleep: "7.3",
-    morningHistory: [52.9, 52.7, 52.8, 52.6, 52.5, 52.7, 52.6],
-    eveningHistory: [53.2, 53.1, 53.0, 52.9, 52.8, 52.9, 52.8],
-    sleepHistory: [7.1, 6.8, 7.5, 7.2, 8.0, 7.4, 7.3]
+    morningHistory: [...Array(23).fill(null), 52.9, 52.7, 52.8, 52.6, 52.5, 52.7, 52.6, null],
+    eveningHistory: [...Array(23).fill(null), 53.2, 53.1, 53.0, 52.9, 52.8, 52.9, 52.8, null],
+    sleepHistory: [...Array(23).fill(null), 7.1, 6.8, 7.5, 7.2, 8.0, 7.4, 7.3, null]
   });
   const [mealRecords, setMealRecords] = useState({
     breakfast: { done: true, photo: null },
@@ -520,17 +520,38 @@ function DataPage({ health, setHealth }) {
   const [value, setValue] = useState("");
   const [recordDate, setRecordDate] = useState("2026-07-30");
   const [hovered, setHovered] = useState(null);
+  const [trendDays, setTrendDays] = useState(7);
+  const [trendStart, setTrendStart] = useState(24);
+  const [selectedHistoryDay, setSelectedHistoryDay] = useState(30);
+  const [historyDraft, setHistoryDraft] = useState("");
   const keyMap = { "早间体重": "morning", "晚间体重": "evening", "睡眠时长": "sleep" };
   const historyMap = { "早间体重": "morningHistory", "晚间体重": "eveningHistory", "睡眠时长": "sleepHistory" };
   const historyKey = historyMap[type];
-  const data = health[historyKey] || [];
-  const dates = [24, 25, 26, 27, 28, 29, 30];
+  const normalizeMonth = raw => {
+    if (raw?.length === 31) return raw;
+    const month = Array(31).fill(null);
+    (raw || []).slice(-7).forEach((number, index) => { month[23 + index] = number; });
+    return month;
+  };
+  const monthData = normalizeMonth(health[historyKey]);
+  const maxTrendStart = Math.max(0, 31 - trendDays);
+  const safeTrendStart = Math.min(trendStart, maxTrendStart);
+  const data = monthData.slice(safeTrendStart, safeTrendStart + trendDays);
+  const dates = Array.from({ length: trendDays }, (_, index) => safeTrendStart + index + 1);
   const unit = type === "睡眠时长" ? "小时" : "kg";
   const validValues = data.filter(value => Number.isFinite(value));
+  const monthValidValues = monthData.filter(value => Number.isFinite(value));
   const minimum = Math.min(...validValues);
   const maximum = Math.max(...validValues);
   const valueRange = maximum - minimum || 1;
   const yFor = number => 90 - ((number - minimum) / valueRange) * 65;
+  const xFor = index => 18 + index * (264 / Math.max(1, data.length - 1));
+  useEffect(() => {
+    setTrendStart(Math.max(0, 31 - trendDays));
+  }, [trendDays]);
+  useEffect(() => {
+    setHistoryDraft(Number.isFinite(monthData[selectedHistoryDay - 1]) ? String(monthData[selectedHistoryDay - 1]) : "");
+  }, [type]);
   const saveData = () => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) {
@@ -538,11 +559,10 @@ function DataPage({ health, setHealth }) {
       return;
     }
     const key = keyMap[type];
-    const dayIndex = dates.indexOf(Number(recordDate.slice(-2)));
+    const dayIndex = Number(recordDate.slice(-2)) - 1;
     setHealth(current => {
-      const nextHistory = [...(current[historyKey] || Array(7).fill(null))];
-      if (dayIndex >= 0) nextHistory[dayIndex] = numeric;
-      else nextHistory.push(numeric), nextHistory.shift();
+      const nextHistory = normalizeMonth(current[historyKey]);
+      if (dayIndex >= 0 && dayIndex < 31) nextHistory[dayIndex] = numeric;
       return {
         ...current,
         ...(recordDate === "2026-07-30" ? { [key]: String(numeric) } : {}),
@@ -552,12 +572,28 @@ function DataPage({ health, setHealth }) {
     });
     setValue("");
   };
-  const deleteRecord = index => {
+  const deleteRecord = dayIndex => {
     setHealth(current => {
-      const nextHistory = [...current[historyKey]];
-      nextHistory[index] = null;
-      const latest = index === 6 ? "" : current[keyMap[type]];
+      const nextHistory = normalizeMonth(current[historyKey]);
+      nextHistory[dayIndex] = null;
+      const latest = dayIndex === 29 ? "" : current[keyMap[type]];
       return { ...current, [historyKey]: nextHistory, [keyMap[type]]: latest };
+    });
+  };
+  const openHistoryDay = day => {
+    setSelectedHistoryDay(day);
+    setHistoryDraft(Number.isFinite(monthData[day - 1]) ? String(monthData[day - 1]) : "");
+  };
+  const saveHistoryDay = () => {
+    const numeric = Number(historyDraft);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      window.alert("请输入有效的数字。");
+      return;
+    }
+    setHealth(current => {
+      const nextHistory = normalizeMonth(current[historyKey]);
+      nextHistory[selectedHistoryDay - 1] = numeric;
+      return { ...current, [historyKey]: nextHistory, ...(selectedHistoryDay === 30 ? { [keyMap[type]]: String(numeric) } : {}) };
     });
   };
   return <>
@@ -573,17 +609,20 @@ function DataPage({ health, setHealth }) {
       <label><span>{type}</span><div className="value-field"><input value={value} onChange={e=>setValue(e.target.value)} inputMode="decimal" placeholder={type==="睡眠时长"?"例如 7.5":"例如 52.6"} /><b>{type==="睡眠时长"?"小时":"kg"}</b></div></label>
       <button className="primary-button" onClick={saveData}>保存今日数据</button>
     </section>
-    <section className="card chart-card"><div className="section-heading"><div><span className="section-kicker">7 DAYS</span><h2>{type}趋势</h2></div><div className="chart-legend"><i />{unit}</div></div>
+    <section className="card chart-card"><div className="section-heading"><div><span className="section-kicker">TREND</span><h2>{type}趋势</h2></div><div className="chart-legend"><i />{unit}</div></div>
+      <div className="trend-range-tabs">{[7,14,31].map(days => <button className={trendDays === days ? "active" : ""} onClick={() => setTrendDays(days)} key={days}>{days === 31 ? "整月" : `${days} 日`}</button>)}</div>
       <svg viewBox="0 0 300 120" role="img" aria-label={`${type}七日趋势图`} onMouseLeave={() => setHovered(null)}><g className="grid-lines"><line x1="18" y1="20" x2="282" y2="20"/><line x1="18" y1="55" x2="282" y2="55"/><line x1="18" y1="90" x2="282" y2="90"/></g>
-        {data.slice(0, -1).map((number, index) => Number.isFinite(number) && Number.isFinite(data[index + 1]) ? <line className="data-segment" key={index} x1={18 + index * 42} y1={yFor(number)} x2={18 + (index + 1) * 42} y2={yFor(data[index + 1])} /> : null)}
-        {data.map((number,index) => Number.isFinite(number) ? <circle className="data-node" cx={18+index*42} cy={yFor(number)} r="5" key={index} onMouseEnter={() => setHovered(index)} /> : null)}
-        {hovered !== null && Number.isFinite(data[hovered]) && <g className="chart-tooltip"><rect x={Math.min(225, Math.max(3, 18 + hovered * 42 - 34))} y={Math.max(1, yFor(data[hovered]) - 31)} width="68" height="22" rx="7"/><text x={Math.min(259, Math.max(37, 18 + hovered * 42))} y={Math.max(15, yFor(data[hovered]) - 16)} textAnchor="middle">{`7/${dates[hovered]} · ${data[hovered]} ${unit}`}</text></g>}
+        {data.slice(0, -1).map((number, index) => Number.isFinite(number) && Number.isFinite(data[index + 1]) ? <line className="data-segment" key={index} x1={xFor(index)} y1={yFor(number)} x2={xFor(index + 1)} y2={yFor(data[index + 1])} /> : null)}
+        {data.map((number,index) => Number.isFinite(number) ? <circle className="data-node" cx={xFor(index)} cy={yFor(number)} r={trendDays === 31 ? "3.5" : "5"} key={index} onMouseEnter={() => setHovered(index)} /> : null)}
+        {hovered !== null && Number.isFinite(data[hovered]) && <g className="chart-tooltip"><rect x={Math.min(225, Math.max(3, xFor(hovered) - 34))} y={Math.max(1, yFor(data[hovered]) - 31)} width="68" height="22" rx="7"/><text x={Math.min(259, Math.max(37, xFor(hovered)))} y={Math.max(15, yFor(data[hovered]) - 16)} textAnchor="middle">{`7/${dates[hovered]} · ${data[hovered]} ${unit}`}</text></g>}
       </svg>
-      <div className="chart-labels">{["24","25","26","27","28","29","30"].map(x=><span key={x}>{x}</span>)}</div>
+      <div className="chart-labels"><span>{dates[0]} 日</span><span>{dates[Math.floor(dates.length / 2)]} 日</span><span>{dates[dates.length - 1]} 日</span></div>
+      <div className="trend-slider"><div><span>7 月 {safeTrendStart + 1} 日</span><span>7 月 {safeTrendStart + trendDays} 日</span></div><input type="range" min="0" max={maxTrendStart} value={safeTrendStart} disabled={trendDays === 31} onChange={event => setTrendStart(Number(event.target.value))}/></div>
     </section>
-    <section className="card history-card"><div className="section-heading"><div><span className="section-kicker">HISTORY</span><h2>历史数据</h2></div><span className="count-pill">{validValues.length} 条</span></div>
-      <div className="history-list">{data.map((number, index) => Number.isFinite(number) ? <div className="history-row" key={dates[index]}><span>7 月 {dates[index]} 日</span><b>{number} {unit}</b><button onClick={() => deleteRecord(index)} aria-label={`删除 7 月 ${dates[index]} 日数据`}>删除</button></div> : null)}</div>
-      {!validValues.length && <p className="empty-note">目前没有历史数据。</p>}
+    <section className="card history-card"><div className="section-heading"><div><span className="section-kicker">JULY DATA</span><h2>历史数据月历</h2></div><span className="count-pill">{monthValidValues.length} 天</span></div>
+      <div className="data-weekdays">{["一","二","三","四","五","六","日"].map(day => <span key={day}>{day}</span>)}</div>
+      <div className="data-month-grid"><i/><i/>{monthData.map((number,index) => <button className={`${selectedHistoryDay === index + 1 ? "selected " : ""}${Number.isFinite(number) ? "has-value" : ""}`} onClick={() => openHistoryDay(index + 1)} key={index}><b>{index + 1}</b><small>{Number.isFinite(number) ? `${number}${type === "睡眠时长" ? "h" : ""}` : "—"}</small></button>)}</div>
+      <div className="history-editor"><div><span>7 月 {selectedHistoryDay} 日 · {type}</span><div className="value-field"><input value={historyDraft} onChange={event => setHistoryDraft(event.target.value)} inputMode="decimal" placeholder="输入数值"/><b>{unit}</b></div></div><button className="save-history" onClick={saveHistoryDay}>保存修改</button><button className="delete-history" onClick={() => { deleteRecord(selectedHistoryDay - 1); setHistoryDraft(""); }}>删除数据</button></div>
     </section>
     <section className="stats-row"><div><small>本周变化</small><b>−0.3 kg</b></div><div><small>平均睡眠</small><b>7.3 h</b></div></section>
   </>;
