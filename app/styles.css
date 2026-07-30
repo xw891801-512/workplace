@@ -291,7 +291,7 @@ button { color: inherit; }
 
 .week-labels, .month-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; }
 .week-labels { margin: 18px 0 8px; color: #ae9ca4; font-size: 9px; text-align: center; }
-.month-grid button, .month-grid i, .month-grid .outside-day { min-height:43px; border: 0; border-radius: 11px; background: #fbf7f8; color: #7c7076; font-size: 10px; font-style: normal; cursor: pointer; position: relative; }
+.month-grid button, .month-grid i, .month-grid .outside-day { min-height:49px; border: 0; border-radius: 11px; background: #fbf7f8; color: #7c7076; font-size: 10px; font-style: normal; cursor: pointer; position: relative; }
 .month-grid button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:3px 1px; }
 .month-grid button b { font-size:10px; }
 .month-grid .outside-day { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:#bcb4b7; background:#f0eeee; opacity:.6; cursor:default; }
@@ -316,7 +316,7 @@ button { color: inherit; }
 .inline-add-form input:focus, .week-add-form input:focus { border-color:var(--rose); }
 .inline-add-form button, .week-add-form > button { padding:9px 13px; border:0; border-radius:12px; color:white; background:var(--rose); font-size:10px; font-weight:800; cursor:pointer; }
 .inline-add-form.compact { margin-top:9px; }
-.calendar-event-form { display:grid; gap:8px; margin-top:15px; padding:12px; border-radius:16px; background:#fff7fa; }
+.calendar-event-form { display:grid; gap:8px; margin-top:12px; padding:12px; border-radius:16px; background:#fff7fa; }
 .event-form-top, .event-form-bottom { display:grid; gap:7px; }.event-form-top { grid-template-columns:minmax(0,1fr) 95px; }.event-form-bottom { grid-template-columns:64px 64px minmax(0,1fr); align-items:end; }
 .calendar-event-form input, .calendar-event-form select { min-width:0; width:100%; padding:9px 8px; border:1px solid #ead9df; border-radius:10px; outline:none; background:white; color:var(--ink); font-size:9px; }
 .calendar-event-form label { display:grid; gap:3px; color:#95858d; font-size:8px; }
@@ -327,21 +327,22 @@ button { color: inherit; }
 .plan-line > span { flex:0 0 22px; height:22px; display:grid; place-items:center; border:1.5px solid #ebcdd5; border-radius:7px; color:white; }
 .plan-line.done { color:#b2a6ab; text-decoration:line-through; }
 .plan-line.done > span { border-color:var(--rose); background:var(--rose); }
-.editable-plan { display:grid; grid-template-columns:23px minmax(0,1fr) 22px; align-items:center; gap:8px; padding:8px 1px; border-bottom:1px dashed var(--line); }
-.editable-plan > button:first-child, .week-task > button:first-child { width:22px; height:22px; display:grid; place-items:center; padding:0; border:1.5px solid #ebcdd5; border-radius:50%; color:white; background:white; cursor:pointer; }
-.editable-plan > input, .week-task > input { min-width:0; width:100%; padding:7px 5px; border:1px solid transparent; border-radius:8px; outline:none; color:var(--ink); background:transparent; font-size:11px; }
+.editable-plan { display:grid; grid-template-columns:minmax(0,1fr) 22px 23px; align-items:center; gap:8px; padding:8px 1px; border-bottom:1px dashed var(--line); }
+.editable-plan.priority { grid-template-columns:minmax(0,1fr) 23px; }
+.round-check { width:23px; height:23px; display:grid; place-items:center; padding:0; border:1.5px solid #e5beca; border-radius:50%; color:white; background:white; cursor:pointer; }
+.editable-plan > input, .week-task > input { min-width:0; width:100%; padding:7px 5px; border:1px solid transparent; border-radius:8px; outline:none; color:var(--ink); background:transparent; font-size:13px; }
 .editable-plan > input:focus, .week-task > input:focus { border-color:#efcad5; background:#fff8fa; }
-.editable-plan.done > button:first-child, .week-task.done > button:first-child { border-color:var(--rose); background:var(--rose); }
+.editable-plan.done > .round-check, .week-task.done > .round-check { border-color:var(--rose); background:var(--rose); }
 .editable-plan.done > .round-check::after, .week-task.done > .round-check::after { content:""; width:8px; height:8px; border-radius:50%; background:white; }
 .editable-plan.done > input, .week-task.done > input { color:#b5a9ae; text-decoration:line-through; }
 .delete-mini { width:22px; height:22px; padding:0; border:0; border-radius:8px; color:#b89fa8; background:#f8f0f3; cursor:pointer; }
 .week-row { display:grid; grid-template-columns:50px 1fr; align-items:center; gap:10px; padding:12px 5px; border-bottom:1px dashed var(--line); }
 .week-row > b { color:#8d7c84; font-size:12px; }.week-row span { font-size:11px; }
 .week-card .section-heading h2 { font-size:16px; }
-.week-task > input { font-size:12px; }
+.week-task > input { font-size:13px; }
 .week-row.today { margin:5px -5px; padding-left:10px; padding-right:10px; border:0; border-radius:14px; color:var(--rose-deep); background:var(--blush); }
 .week-day-tasks { min-width:0; display:grid; gap:3px; }
-.week-task { display:grid; grid-template-columns:22px minmax(0,1fr) 22px; align-items:center; gap:5px; }
+.week-task { display:grid; grid-template-columns:minmax(0,1fr) 22px 23px; align-items:center; gap:6px; }
 .empty-day { color:#b7aab0; font-size:10px !important; }
 .week-add-form { display:grid; grid-template-columns:72px minmax(0,1fr) auto; gap:6px; margin-top:13px; padding-top:13px; border-top:1px solid var(--line); }
 .week-add-form select { padding-left:7px; padding-right:4px; font-size:9px; }
@@ -385,8 +386,17 @@ button { color: inherit; }
 .value-field input { min-width:0; width:100%; border:0; outline:0; color:var(--ink); background:transparent; font-size:13px; }.value-field b { color:#7f7379; font-size:11px; }
 .chart-legend { display:flex; align-items:center; gap:5px; color:var(--muted); font-size:9px; }.chart-legend i { width:8px; height:8px; border-radius:50%; background:var(--rose); }
 .chart-card svg { width:100%; margin-top:12px; overflow:visible; }
-.chart-card .grid-lines line { stroke:#eee4e8; stroke-width:1; }.chart-card polyline { fill:none; stroke:var(--rose); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }.chart-card circle { fill:white; stroke:var(--rose); stroke-width:2; }
+.chart-card .grid-lines line { stroke:#eee4e8; stroke-width:1; }
+.chart-card .data-segment { stroke:var(--rose); stroke-width:3; stroke-linecap:round; }
+.chart-card .data-node { fill:white; stroke:var(--rose); stroke-width:2.5; cursor:pointer; }
+.chart-card .data-node:hover { fill:var(--rose); stroke-width:4; }
+.chart-tooltip rect { fill:#544650; opacity:.92; }.chart-tooltip text { fill:white; font-size:7px; font-weight:700; }
 .chart-labels { display:flex; justify-content:space-between; padding:0 3px; color:#a99ba1; font-size:8px; }
+.history-list { display:grid; margin-top:12px; }
+.history-row { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px; padding:11px 2px; border-bottom:1px dashed var(--line); }
+.history-row span { color:#766a70; font-size:11px; }.history-row b { color:var(--rose-deep); font-size:11px; }
+.history-row button { padding:5px 8px; border:0; border-radius:8px; color:#a36d7e; background:#faedf1; font-size:9px; cursor:pointer; }
+.history-row button:hover { color:white; background:var(--rose); }
 .stats-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
 .stats-row div { display:grid; gap:5px; padding:15px; border:1px solid var(--line); border-radius:18px; background:white; box-shadow:var(--shadow); }
 .stats-row small { color:var(--muted); font-size:9px; }.stats-row b { color:var(--rose-deep); font-size:15px; }

@@ -378,6 +378,9 @@ function MonthPlan() {
         })}
         <span className="outside-day">1<small>八月</small></span><span className="outside-day">2</span>
       </div>
+    </section>
+    <section className="card event-editor-card">
+      <div className="section-heading"><div><span className="section-kicker">MONTH EVENT</span><h2>添加重要时段</h2></div><span className="count-pill">{events.length} 项</span></div>
       <form className="calendar-event-form" onSubmit={addCalendarEvent}>
         <div className="event-form-top"><input value={eventDraft.title} onChange={event => setEventDraft(current => ({ ...current, title: event.target.value }))} placeholder="事件名称" /><select value={eventDraft.type} onChange={event => setEventDraft(current => ({ ...current, type: event.target.value }))}><option value="deadline">Deadline</option><option value="range">持续时段</option><option value="plan">普通安排</option></select></div>
         <div className="event-form-bottom"><label>开始<input type="number" min="1" max="31" value={eventDraft.start} onChange={event => setEventDraft(current => ({ ...current, start: event.target.value }))}/></label><label>结束<input type="number" min="1" max="31" value={eventDraft.end} onChange={event => setEventDraft(current => ({ ...current, end: event.target.value }))}/></label><button type="submit">添加到日历</button></div>
@@ -418,14 +421,14 @@ function WeekPlan() {
   return <>
     <PageIntro eyebrow="WEEK 31" icon="▤" title="周计划表" copy="先抓住这一周最重要的几件事。" />
     <section className="card focus-card"><span className="section-kicker">THIS WEEK</span><h2>本周三件重要的事</h2>
-      {priorities.map(item => <div className={item.done ? "editable-plan done" : "editable-plan"} key={item.id}>
-        <button className="round-check" aria-label={item.done ? "取消完成" : "标记完成"} onClick={() => setPriorities(v => v.map(x => x.id === item.id ? {...x,done:!x.done}:x))} />
+      {priorities.map(item => <div className={item.done ? "editable-plan priority done" : "editable-plan priority"} key={item.id}>
         <input value={item.text} onChange={event => setPriorities(v => v.map(x => x.id === item.id ? {...x,text:event.target.value}:x))} aria-label="编辑本周重要事项" />
+        <button className="round-check" aria-label={item.done ? "取消完成" : "标记完成"} onClick={() => setPriorities(v => v.map(x => x.id === item.id ? {...x,done:!x.done}:x))} />
       </div>)}
     </section>
     <section className="card week-card"><div className="section-heading"><h2>7 月 27 日 · 8 月 2 日</h2><span className="count-pill">{weekTasks.filter(item => item.done).length}/{weekTasks.length}</span></div>
       {days.map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b>{day}</b><div className="week-day-tasks">
-        {weekTasks.filter(task => task.day.includes(day.slice(0, 2))).map(task => <div className={task.done ? "week-task done" : "week-task"} key={task.id}><button className="round-check" aria-label={task.done ? "取消完成" : "标记完成"} onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}/><input value={task.text} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/><button className="delete-mini" onClick={() => setWeekTasks(v => v.filter(x => x.id !== task.id))}>×</button></div>)}
+        {weekTasks.filter(task => task.day.includes(day.slice(0, 2))).map(task => <div className={task.done ? "week-task done" : "week-task"} key={task.id}><input value={task.text} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/><button className="delete-mini" onClick={() => setWeekTasks(v => v.filter(x => x.id !== task.id))}>×</button><button className="round-check" aria-label={task.done ? "取消完成" : "标记完成"} onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}/></div>)}
         {!weekTasks.some(task => task.day.includes(day.slice(0, 2))) && <span className="empty-day">暂无任务</span>}
       </div></div>)}
       <form className="week-add-form" onSubmit={addWeekTask}><select value={taskDay} onChange={event => setTaskDay(event.target.value)}>{days.map(day => <option key={day}>{day}</option>)}</select><input value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder="输入本周任务" /><button type="submit">添加</button></form>
@@ -445,7 +448,7 @@ function DayPlan({ items, setItems }) {
   return <>
     <PageIntro eyebrow="THURSDAY · JUL 30" icon="☑" title="日计划表" copy="把今天拆成清楚、可以完成的小步骤。" />
     {["工作","生活","娱乐"].map(group => <section className="card day-section" key={group}><div className="section-heading"><h2>{group}</h2><span className="count-pill">{items.filter(x=>x.group===group&&x.done).length}/{items.filter(x=>x.group===group).length}</span></div>
-      {items.filter(x=>x.group===group).map(item=><div className={item.done?"editable-plan done":"editable-plan"} key={item.id}><button onClick={()=>setItems(v=>v.map(x=>x.id===item.id?{...x,done:!x.done}:x))}>{item.done?"✓":""}</button><input value={item.text} onChange={event=>setItems(v=>v.map(x=>x.id===item.id?{...x,text:event.target.value}:x))}/><button className="delete-mini" onClick={()=>setItems(v=>v.filter(x=>x.id!==item.id))}>×</button></div>)}
+      {items.filter(x=>x.group===group).map(item=><div className={item.done?"editable-plan done":"editable-plan"} key={item.id}><input value={item.text} onChange={event=>setItems(v=>v.map(x=>x.id===item.id?{...x,text:event.target.value}:x))}/><button className="delete-mini" onClick={()=>setItems(v=>v.filter(x=>x.id!==item.id))}>×</button><button className="round-check" aria-label={item.done?"取消完成":"标记完成"} onClick={()=>setItems(v=>v.map(x=>x.id===item.id?{...x,done:!x.done}:x))}/></div>)}
       <form className="inline-add-form compact" onSubmit={event => addItem(event, group)}><input value={drafts[group]} onChange={event=>setDrafts(current=>({...current,[group]:event.target.value}))} placeholder={`添加${group}任务`} /><button type="submit">添加</button></form>
     </section>)}
   </>;
@@ -513,13 +516,21 @@ function HabitPage({ habits, setHabits }) {
 }
 
 function DataPage({ health, setHealth }) {
-  const [type,setType]=useState("早间体重");
-  const [value,setValue]=useState("");
+  const [type, setType] = useState("早间体重");
+  const [value, setValue] = useState("");
   const [recordDate, setRecordDate] = useState("2026-07-30");
+  const [hovered, setHovered] = useState(null);
   const keyMap = { "早间体重": "morning", "晚间体重": "evening", "睡眠时长": "sleep" };
   const historyMap = { "早间体重": "morningHistory", "晚间体重": "eveningHistory", "睡眠时长": "sleepHistory" };
-  const data = health[type === "晚间体重" ? "eveningHistory" : "morningHistory"];
-  const points = data.map((v,i)=>`${18+i*42},${88-(v-52.4)*90}`).join(" ");
+  const historyKey = historyMap[type];
+  const data = health[historyKey] || [];
+  const dates = [24, 25, 26, 27, 28, 29, 30];
+  const unit = type === "睡眠时长" ? "小时" : "kg";
+  const validValues = data.filter(value => Number.isFinite(value));
+  const minimum = Math.min(...validValues);
+  const maximum = Math.max(...validValues);
+  const valueRange = maximum - minimum || 1;
+  const yFor = number => 90 - ((number - minimum) / valueRange) * 65;
   const saveData = () => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) {
@@ -527,9 +538,27 @@ function DataPage({ health, setHealth }) {
       return;
     }
     const key = keyMap[type];
-    const historyKey = historyMap[type];
-    setHealth(current => ({ ...current, [key]: String(numeric), [historyKey]: [...current[historyKey].slice(1), numeric], lastRecordDate: recordDate }));
+    const dayIndex = dates.indexOf(Number(recordDate.slice(-2)));
+    setHealth(current => {
+      const nextHistory = [...(current[historyKey] || Array(7).fill(null))];
+      if (dayIndex >= 0) nextHistory[dayIndex] = numeric;
+      else nextHistory.push(numeric), nextHistory.shift();
+      return {
+        ...current,
+        ...(recordDate === "2026-07-30" ? { [key]: String(numeric) } : {}),
+        [historyKey]: nextHistory,
+        lastRecordDate: recordDate
+      };
+    });
     setValue("");
+  };
+  const deleteRecord = index => {
+    setHealth(current => {
+      const nextHistory = [...current[historyKey]];
+      nextHistory[index] = null;
+      const latest = index === 6 ? "" : current[keyMap[type]];
+      return { ...current, [historyKey]: nextHistory, [keyMap[type]]: latest };
+    });
   };
   return <>
     <PageIntro eyebrow="BODY NOTES" icon="⌁" title="数据打卡" copy="记录早晚体重与睡眠时长，看见趋势变化。" />
@@ -544,9 +573,17 @@ function DataPage({ health, setHealth }) {
       <label><span>{type}</span><div className="value-field"><input value={value} onChange={e=>setValue(e.target.value)} inputMode="decimal" placeholder={type==="睡眠时长"?"例如 7.5":"例如 52.6"} /><b>{type==="睡眠时长"?"小时":"kg"}</b></div></label>
       <button className="primary-button" onClick={saveData}>保存今日数据</button>
     </section>
-    <section className="card chart-card"><div className="section-heading"><div><span className="section-kicker">7 DAYS</span><h2>体重趋势</h2></div><div className="chart-legend"><i />早间</div></div>
-      <svg viewBox="0 0 300 120" role="img" aria-label="七日体重趋势折线图"><g className="grid-lines"><line x1="18" y1="20" x2="282" y2="20"/><line x1="18" y1="55" x2="282" y2="55"/><line x1="18" y1="90" x2="282" y2="90"/></g><polyline points={points}/>{data.map((v,i)=><circle cx={18+i*42} cy={88-(v-52.4)*90} r="4" key={i}/>)}</svg>
+    <section className="card chart-card"><div className="section-heading"><div><span className="section-kicker">7 DAYS</span><h2>{type}趋势</h2></div><div className="chart-legend"><i />{unit}</div></div>
+      <svg viewBox="0 0 300 120" role="img" aria-label={`${type}七日趋势图`} onMouseLeave={() => setHovered(null)}><g className="grid-lines"><line x1="18" y1="20" x2="282" y2="20"/><line x1="18" y1="55" x2="282" y2="55"/><line x1="18" y1="90" x2="282" y2="90"/></g>
+        {data.slice(0, -1).map((number, index) => Number.isFinite(number) && Number.isFinite(data[index + 1]) ? <line className="data-segment" key={index} x1={18 + index * 42} y1={yFor(number)} x2={18 + (index + 1) * 42} y2={yFor(data[index + 1])} /> : null)}
+        {data.map((number,index) => Number.isFinite(number) ? <circle className="data-node" cx={18+index*42} cy={yFor(number)} r="5" key={index} onMouseEnter={() => setHovered(index)} /> : null)}
+        {hovered !== null && Number.isFinite(data[hovered]) && <g className="chart-tooltip"><rect x={Math.min(225, Math.max(3, 18 + hovered * 42 - 34))} y={Math.max(1, yFor(data[hovered]) - 31)} width="68" height="22" rx="7"/><text x={Math.min(259, Math.max(37, 18 + hovered * 42))} y={Math.max(15, yFor(data[hovered]) - 16)} textAnchor="middle">{`7/${dates[hovered]} · ${data[hovered]} ${unit}`}</text></g>}
+      </svg>
       <div className="chart-labels">{["24","25","26","27","28","29","30"].map(x=><span key={x}>{x}</span>)}</div>
+    </section>
+    <section className="card history-card"><div className="section-heading"><div><span className="section-kicker">HISTORY</span><h2>历史数据</h2></div><span className="count-pill">{validValues.length} 条</span></div>
+      <div className="history-list">{data.map((number, index) => Number.isFinite(number) ? <div className="history-row" key={dates[index]}><span>7 月 {dates[index]} 日</span><b>{number} {unit}</b><button onClick={() => deleteRecord(index)} aria-label={`删除 7 月 ${dates[index]} 日数据`}>删除</button></div> : null)}</div>
+      {!validValues.length && <p className="empty-note">目前没有历史数据。</p>}
     </section>
     <section className="stats-row"><div><small>本周变化</small><b>−0.3 kg</b></div><div><small>平均睡眠</small><b>7.3 h</b></div></section>
   </>;
