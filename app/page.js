@@ -463,6 +463,7 @@ function WeekPlan() {
     { id: 3, text: "运动 30 分钟", done: false }
   ]);
   const days = ["27 周一","28 周二","29 周三","30 周四","31 周五","01 周六","02 周日"];
+  const dayIcons = ["🐰","🐥","🐷","🐹","🐰","🐥","🐷"];
   const [weekTasks, setWeekTasks] = usePersistentState("winnie-week-tasks", [
     { id: 1, day: "30 周四", text: "完成本周计划的第一版", done: false },
     { id: 2, day: "01 周六", text: "看电影，休息一下", done: false }
@@ -499,12 +500,11 @@ function WeekPlan() {
       </div>)}
     </section>
     <section className="card week-card"><div className="section-heading"><h2>7 月 27 日 · 8 月 2 日</h2><span className="count-pill">{weekTasks.filter(item => item.done).length}/{weekTasks.length}</span></div>
-      {days.map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b>{day}</b><div className="week-day-tasks">
+      {days.map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b><span>{dayIcons[index]}</span>{day}</b><div className="week-day-tasks">
         {weekTasks.filter(task => task.day.includes(day.slice(0, 2))).map(task => <div className={swipedId === task.id ? "swipe-task revealed" : "swipe-task"} key={task.id} onTouchStart={startSwipe} onTouchEnd={event => endSwipe(event, task.id)}>
           <button className="swipe-delete" onClick={() => { setWeekTasks(v => v.filter(x => x.id !== task.id)); setSwipedId(null); }}>删除</button>
           <div className={task.done ? "week-task done" : "week-task"}><textarea rows="1" value={task.text} onInput={autoGrow} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/><button className="round-check" aria-label={task.done ? "取消完成" : "标记完成"} onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}/></div>
         </div>)}
-        {!weekTasks.some(task => task.day.includes(day.slice(0, 2))) && <span className="empty-day">暂无任务</span>}
       </div></div>)}
       <form className="week-add-form" onSubmit={addWeekTask}><select value={taskDay} onChange={event => setTaskDay(event.target.value)}>{days.map(day => <option key={day}>{day}</option>)}</select><input value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder="输入本周任务" /><button type="submit">添加</button></form>
     </section>
@@ -568,20 +568,47 @@ const habitColorOptions = [
 
 function HabitPage({ habits, setHabits }) {
   const today = 30;
+  const todayKey = "2026-07-30";
+  const [habitMonth, setHabitMonth] = useState("2026-07");
+  const [habitYear, habitMonthNumber] = habitMonth.split("-").map(Number);
+  const habitMonthDays = new Date(habitYear, habitMonthNumber, 0).getDate();
+  const habitMonthOffset = (new Date(habitYear, habitMonthNumber - 1, 1).getDay() + 6) % 7;
+  const habitDateKey = day => `${habitMonth}-${String(day).padStart(2, "0")}`;
+  const datesForHabit = habit => habit.dates || (habit.days || []).map(day => `2026-07-${String(day).padStart(2, "0")}`);
+  const habitHit = (habit, day) => datesForHabit(habit).includes(habitDateKey(day));
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [habitDraft, setHabitDraft] = useState({ name: "", icon: "✨", color: "coral" });
-  const toggleToday = id => setHabits(v=>v.map(h=>h.id===id?{...h,days:h.days.includes(today)?h.days.filter(d=>d!==today):[...h.days,today]}:h));
-  const toggleDay = (id, day) => setHabits(v => v.map(h => h.id === id ? { ...h, days: h.days.includes(day) ? h.days.filter(d => d !== day) : [...h.days, day] } : h));
+  const toggleToday = id => setHabits(v=>v.map(h=>{
+    if (h.id !== id) return h;
+    const dates = datesForHabit(h);
+    const checked = dates.includes(todayKey);
+    return {...h, dates:checked ? dates.filter(date=>date!==todayKey) : [...dates,todayKey], days:checked ? h.days.filter(d=>d!==today) : [...h.days,today]};
+  }));
+  const toggleDay = (id, day) => setHabits(v => v.map(h => {
+    if (h.id !== id) return h;
+    const dateKey = habitDateKey(day);
+    const dates = datesForHabit(h);
+    const checked = dates.includes(dateKey);
+    const legacyDays = habitMonth === "2026-07" ? (checked ? h.days.filter(value => value !== day) : [...h.days, day]) : h.days;
+    return { ...h, days: legacyDays, dates: checked ? dates.filter(date => date !== dateKey) : [...dates, dateKey] };
+  }));
   const addHabit = event => {
     event.preventDefault();
     if (!habitDraft.name.trim()) return;
-    setHabits(current => [...current, { id: `habit-${Date.now()}`, icon: habitDraft.icon, name: habitDraft.name.trim(), color: habitDraft.color, days: [] }]);
+    setHabits(current => [...current, { id: `habit-${Date.now()}`, icon: habitDraft.icon, name: habitDraft.name.trim(), color: habitDraft.color, days: [], dates: [] }]);
     setHabitDraft({ name: "", icon: "✨", color: "coral" });
     setShowHabitForm(false);
   };
   const updateHabit = (id, patch) => setHabits(current => current.map(habit => habit.id === id ? { ...habit, ...patch } : habit));
+  const moveHabit = (index, direction) => setHabits(current => {
+    const target = index + direction;
+    if (target < 0 || target >= current.length) return current;
+    const next = [...current];
+    [next[index], next[target]] = [next[target], next[index]];
+    return next;
+  });
   const deleteHabit = id => {
     if (pendingDelete !== id) {
       setPendingDelete(id);
@@ -598,17 +625,18 @@ function HabitPage({ habits, setHabits }) {
         <div className="habit-options"><label>图标<select value={habitDraft.icon} onChange={event => setHabitDraft(current => ({ ...current, icon: event.target.value }))}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select></label><label>颜色<select value={habitDraft.color} onChange={event => setHabitDraft(current => ({ ...current, color: event.target.value }))}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label></div>
         <button type="submit">创建习惯</button>
       </form>}
-      {editMode && <div className="habit-edit-list">{habits.map(habit => <div className="habit-edit-row" key={habit.id}><input value={habit.name} onChange={event => updateHabit(habit.id, { name: event.target.value })}/><select value={habit.icon} onChange={event => updateHabit(habit.id, { icon: event.target.value })}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select><select value={habit.color} onChange={event => updateHabit(habit.id, { color: event.target.value })}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select><button className={pendingDelete === habit.id ? "confirm-delete" : ""} onClick={() => deleteHabit(habit.id)}>{pendingDelete === habit.id ? "确认" : "删除"}</button></div>)}</div>}
+      {editMode && <div className="habit-edit-list">{habits.map((habit, index) => <div className="habit-edit-row" key={habit.id}><div className="habit-order"><button disabled={index === 0} onClick={() => moveHabit(index, -1)} aria-label={`上移${habit.name}`}>↑</button><button disabled={index === habits.length - 1} onClick={() => moveHabit(index, 1)} aria-label={`下移${habit.name}`}>↓</button></div><input value={habit.name} onChange={event => updateHabit(habit.id, { name: event.target.value })}/><select value={habit.icon} onChange={event => updateHabit(habit.id, { icon: event.target.value })}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select><select value={habit.color} onChange={event => updateHabit(habit.id, { color: event.target.value })}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select><button className={pendingDelete === habit.id ? "confirm-delete" : ""} onClick={() => deleteHabit(habit.id)}>{pendingDelete === habit.id ? "确认" : "删除"}</button></div>)}</div>}
       <div className="habit-today">{habits.map(h=><button key={h.id} disabled={!editMode} className={`${h.days.includes(today)?"habit-pill checked":"habit-pill"}${editMode ? " editable" : ""}`} onClick={()=>toggleToday(h.id)}><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{editMode ? (h.days.includes(today)?"点击取消":"点击打卡") : (h.days.includes(today)?"今天已打卡":"未打卡")}</small></button>)}</div>
     </section>
-    <section className="card heatmap-card"><div className="section-heading"><div><span className="section-kicker">JULY</span><h2>本月打卡</h2></div><span className="count-pill">30 天</span></div>
-      {habits.map(h=><div className="habit-calendar" key={h.id}><div className="habit-title"><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{h.days.length} 天</small></div>
+    <section className="card heatmap-card"><div className="section-heading"><div><span className="section-kicker">HABIT ARCHIVE</span><h2>月度打卡</h2></div><input className="month-picker" type="month" value={habitMonth} onChange={event => setHabitMonth(event.target.value)} /></div>
+      {habits.map(h=><div className="habit-calendar" key={h.id}><div className="habit-title"><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{Array.from({length:habitMonthDays},(_,index)=>habitHit(h,index+1)).filter(Boolean).length} 天</small></div>
         <div className="heat-weekdays">{["一","二","三","四","五","六","日"].map(day => <span key={day}>{day}</span>)}</div>
         <div className={`heat-grid ${h.color}`}>
-          <span className="blank" /><span className="blank" />
-          {Array.from({length:31},(_,i)=><button type="button" disabled={!editMode} onClick={() => toggleDay(h.id, i + 1)} className={`${h.days.includes(i+1)?"hit ":""}${i+1===today?"today ":""}${editMode?"editable":""}`} key={i}>{i+1}</button>)}
+          {Array.from({length:habitMonthOffset},(_,index)=><span className="blank" key={`blank-${index}`} />)}
+          {Array.from({length:habitMonthDays},(_,i)=><button type="button" disabled={!editMode} onClick={() => toggleDay(h.id, i + 1)} className={`${habitHit(h,i+1)?"hit ":""}${habitDateKey(i+1)===todayKey?"today ":""}${editMode?"editable":""}`} key={i}>{i+1}</button>)}
         </div>
       </div>)}
+      <p className="archive-note">记录按年月保留；切换月份即可回看或补打卡。</p>
     </section>
   </>;
 }
@@ -617,6 +645,7 @@ function DataPage({ health, setHealth }) {
   const [type, setType] = useState("早间体重");
   const [value, setValue] = useState("");
   const [recordDate, setRecordDate] = useState("2026-07-30");
+  const [historyMonth, setHistoryMonth] = useState("2026-07");
   const [hovered, setHovered] = useState(null);
   const [trendDays, setTrendDays] = useState(7);
   const [trendStart, setTrendStart] = useState(24);
@@ -625,31 +654,49 @@ function DataPage({ health, setHealth }) {
   const keyMap = { "早间体重": "morning", "晚间体重": "evening", "睡眠时长": "sleep" };
   const historyMap = { "早间体重": "morningHistory", "晚间体重": "eveningHistory", "睡眠时长": "sleepHistory" };
   const historyKey = historyMap[type];
+  const [historyYear, historyMonthNumber] = historyMonth.split("-").map(Number);
+  const daysInHistoryMonth = new Date(historyYear, historyMonthNumber, 0).getDate();
+  const historyOffset = (new Date(historyYear, historyMonthNumber - 1, 1).getDay() + 6) % 7;
+  const recordKeyFor = day => `${historyMonth}-${String(day).padStart(2, "0")}`;
   const normalizeMonth = raw => {
     if (raw?.length === 31) return raw;
     const month = Array(31).fill(null);
     (raw || []).slice(-7).forEach((number, index) => { month[23 + index] = number; });
     return month;
   };
-  const monthData = normalizeMonth(health[historyKey]);
-  const maxTrendStart = Math.max(0, 31 - trendDays);
+  const legacyMonth = normalizeMonth(health[historyKey]);
+  const monthData = Array.from({ length: daysInHistoryMonth }, (_, index) => {
+    const saved = health.records?.[recordKeyFor(index + 1)]?.[keyMap[type]];
+    if (Number.isFinite(saved)) return saved;
+    return historyMonth === "2026-07" ? legacyMonth[index] : null;
+  });
+  const maxTrendStart = Math.max(0, daysInHistoryMonth - trendDays);
   const safeTrendStart = Math.min(trendStart, maxTrendStart);
   const data = monthData.slice(safeTrendStart, safeTrendStart + trendDays);
-  const dates = Array.from({ length: trendDays }, (_, index) => safeTrendStart + index + 1);
+  const dates = Array.from({ length: Math.min(trendDays, daysInHistoryMonth) }, (_, index) => safeTrendStart + index + 1);
   const unit = type === "睡眠时长" ? "小时" : "kg";
   const validValues = data.filter(value => Number.isFinite(value));
   const monthValidValues = monthData.filter(value => Number.isFinite(value));
-  const minimum = Math.min(...validValues);
-  const maximum = Math.max(...validValues);
+  const minimum = validValues.length ? Math.min(...validValues) : 0;
+  const maximum = validValues.length ? Math.max(...validValues) : 1;
   const valueRange = maximum - minimum || 1;
   const yFor = number => 90 - ((number - minimum) / valueRange) * 65;
-  const xFor = index => 18 + index * (264 / Math.max(1, data.length - 1));
+  const xFor = index => 36 + index * (246 / Math.max(1, data.length - 1));
+  const middleValue = minimum + valueRange / 2;
+  const selectedDateKey = recordKeyFor(selectedHistoryDay);
+  const selectedDayRecord = health.records?.[selectedDateKey];
+  const selectedMorning = Number.isFinite(selectedDayRecord?.morning) ? selectedDayRecord.morning : (historyMonth === "2026-07" ? normalizeMonth(health.morningHistory)[selectedHistoryDay - 1] : null);
+  const selectedEvening = Number.isFinite(selectedDayRecord?.evening) ? selectedDayRecord.evening : (historyMonth === "2026-07" ? normalizeMonth(health.eveningHistory)[selectedHistoryDay - 1] : null);
+  const selectedSleep = Number.isFinite(selectedDayRecord?.sleep) ? selectedDayRecord.sleep : (historyMonth === "2026-07" ? normalizeMonth(health.sleepHistory)[selectedHistoryDay - 1] : null);
+  const selectedWeightDifference = Number.isFinite(selectedMorning) && Number.isFinite(selectedEvening)
+    ? selectedEvening - selectedMorning
+    : null;
   useEffect(() => {
     setTrendStart(Math.max(0, 31 - trendDays));
   }, [trendDays]);
   useEffect(() => {
     setHistoryDraft(Number.isFinite(monthData[selectedHistoryDay - 1]) ? String(monthData[selectedHistoryDay - 1]) : "");
-  }, [type]);
+  }, [type, historyMonth]);
   const saveData = () => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) {
@@ -660,22 +707,27 @@ function DataPage({ health, setHealth }) {
     const dayIndex = Number(recordDate.slice(-2)) - 1;
     setHealth(current => {
       const nextHistory = normalizeMonth(current[historyKey]);
-      if (dayIndex >= 0 && dayIndex < 31) nextHistory[dayIndex] = numeric;
+      if (recordDate.startsWith("2026-07") && dayIndex >= 0 && dayIndex < 31) nextHistory[dayIndex] = numeric;
       return {
         ...current,
         ...(recordDate === "2026-07-30" ? { [key]: String(numeric) } : {}),
         [historyKey]: nextHistory,
+        records: { ...(current.records || {}), [recordDate]: { ...(current.records?.[recordDate] || {}), [key]: numeric } },
         lastRecordDate: recordDate
       };
     });
+    setHistoryMonth(recordDate.slice(0, 7));
+    setSelectedHistoryDay(Number(recordDate.slice(-2)));
     setValue("");
   };
   const deleteRecord = dayIndex => {
     setHealth(current => {
       const nextHistory = normalizeMonth(current[historyKey]);
-      nextHistory[dayIndex] = null;
-      const latest = dayIndex === 29 ? "" : current[keyMap[type]];
-      return { ...current, [historyKey]: nextHistory, [keyMap[type]]: latest };
+      if (historyMonth === "2026-07") nextHistory[dayIndex] = null;
+      const dateKey = recordKeyFor(dayIndex + 1);
+      const nextRecords = { ...(current.records || {}), [dateKey]: { ...(current.records?.[dateKey] || {}), [keyMap[type]]: null } };
+      const latest = dateKey === "2026-07-30" ? "" : current[keyMap[type]];
+      return { ...current, [historyKey]: nextHistory, records: nextRecords, [keyMap[type]]: latest };
     });
   };
   const openHistoryDay = day => {
@@ -690,16 +742,18 @@ function DataPage({ health, setHealth }) {
     }
     setHealth(current => {
       const nextHistory = normalizeMonth(current[historyKey]);
-      nextHistory[selectedHistoryDay - 1] = numeric;
-      return { ...current, [historyKey]: nextHistory, ...(selectedHistoryDay === 30 ? { [keyMap[type]]: String(numeric) } : {}) };
+      if (historyMonth === "2026-07") nextHistory[selectedHistoryDay - 1] = numeric;
+      const dateKey = recordKeyFor(selectedHistoryDay);
+      return { ...current, [historyKey]: nextHistory, records: { ...(current.records || {}), [dateKey]: { ...(current.records?.[dateKey] || {}), [keyMap[type]]: numeric } }, ...(dateKey === "2026-07-30" ? { [keyMap[type]]: String(numeric) } : {}) };
     });
   };
   return <>
     <PageIntro eyebrow="BODY NOTES" icon="⌁" title="数据打卡" copy="记录早晚体重与睡眠时长，看见趋势变化。" />
     <section className="current-data-strip">
-      <div><small>早间体重</small><b>{health.morning || "—"} kg</b></div>
-      <div><small>晚间体重</small><b>{health.evening ? `${health.evening} kg` : "未记录"}</b></div>
-      <div><small>睡眠</small><b>{health.sleep || "—"} h</b></div>
+      <div><small>所选日早间</small><b>{Number.isFinite(selectedMorning) ? `${selectedMorning} kg` : "未记录"}</b></div>
+      <div><small>所选日晚间</small><b>{Number.isFinite(selectedEvening) ? `${selectedEvening} kg` : "未记录"}</b></div>
+      <div><small>所选日睡眠</small><b>{Number.isFinite(selectedSleep) ? `${selectedSleep} h` : "未记录"}</b></div>
+      <div><small>所选日早晚差</small><b>{selectedWeightDifference === null ? "待完整记录" : `${selectedWeightDifference >= 0 ? "+" : ""}${selectedWeightDifference.toFixed(1)} kg`}</b></div>
     </section>
     <section className="card data-form"><div className="section-heading"><h2>录入数据</h2><span className="count-pill">7 月 30 日</span></div>
       <div className="segmented">{["早间体重","晚间体重","睡眠时长"].map(x=><button className={type===x?"active":""} onClick={()=>setType(x)} key={x}>{x}</button>)}</div>
@@ -709,18 +763,20 @@ function DataPage({ health, setHealth }) {
     </section>
     <section className="card chart-card"><div className="section-heading"><div><span className="section-kicker">TREND</span><h2>{type}趋势</h2></div><div className="chart-legend"><i />{unit}</div></div>
       <div className="trend-range-tabs">{[7,14,31].map(days => <button className={trendDays === days ? "active" : ""} onClick={() => setTrendDays(days)} key={days}>{days === 31 ? "整月" : `${days} 日`}</button>)}</div>
-      <svg viewBox="0 0 300 120" role="img" aria-label={`${type}七日趋势图`} onMouseLeave={() => setHovered(null)}><g className="grid-lines"><line x1="18" y1="20" x2="282" y2="20"/><line x1="18" y1="55" x2="282" y2="55"/><line x1="18" y1="90" x2="282" y2="90"/></g>
+      <svg viewBox="0 0 300 120" role="img" aria-label={`${type}趋势图`} onMouseLeave={() => setHovered(null)}><g className="grid-lines"><line x1="36" y1="20" x2="282" y2="20"/><line x1="36" y1="55" x2="282" y2="55"/><line x1="36" y1="90" x2="282" y2="90"/></g>
+        <g className="y-axis-labels"><text x="31" y="23" textAnchor="end">{maximum.toFixed(1)}</text><text x="31" y="58" textAnchor="end">{middleValue.toFixed(1)}</text><text x="31" y="93" textAnchor="end">{minimum.toFixed(1)}</text></g>
         {data.slice(0, -1).map((number, index) => Number.isFinite(number) && Number.isFinite(data[index + 1]) ? <line className="data-segment" key={index} x1={xFor(index)} y1={yFor(number)} x2={xFor(index + 1)} y2={yFor(data[index + 1])} /> : null)}
         {data.map((number,index) => Number.isFinite(number) ? <circle className="data-node" cx={xFor(index)} cy={yFor(number)} r={trendDays === 31 ? "3.5" : "5"} key={index} onMouseEnter={() => setHovered(index)} /> : null)}
-        {hovered !== null && Number.isFinite(data[hovered]) && <g className="chart-tooltip"><rect x={Math.min(225, Math.max(3, xFor(hovered) - 34))} y={Math.max(1, yFor(data[hovered]) - 31)} width="68" height="22" rx="7"/><text x={Math.min(259, Math.max(37, xFor(hovered)))} y={Math.max(15, yFor(data[hovered]) - 16)} textAnchor="middle">{`7/${dates[hovered]} · ${data[hovered]} ${unit}`}</text></g>}
+        {hovered !== null && Number.isFinite(data[hovered]) && <g className="chart-tooltip"><rect x={Math.min(225, Math.max(3, xFor(hovered) - 34))} y={Math.max(1, yFor(data[hovered]) - 31)} width="68" height="22" rx="7"/><text x={Math.min(259, Math.max(37, xFor(hovered)))} y={Math.max(15, yFor(data[hovered]) - 16)} textAnchor="middle">{`${historyMonthNumber}/${dates[hovered]} · ${data[hovered]} ${unit}`}</text></g>}
       </svg>
       <div className="chart-labels"><span>{dates[0]} 日</span><span>{dates[Math.floor(dates.length / 2)]} 日</span><span>{dates[dates.length - 1]} 日</span></div>
-      <div className="trend-slider"><div><span>7 月 {safeTrendStart + 1} 日</span><span>7 月 {safeTrendStart + trendDays} 日</span></div><input type="range" min="0" max={maxTrendStart} value={safeTrendStart} disabled={trendDays === 31} onChange={event => setTrendStart(Number(event.target.value))}/></div>
+      <div className="trend-slider"><div><span>{historyMonthNumber} 月 {safeTrendStart + 1} 日</span><span>{historyMonthNumber} 月 {Math.min(daysInHistoryMonth, safeTrendStart + trendDays)} 日</span></div><input type="range" min="0" max={maxTrendStart} value={safeTrendStart} disabled={trendDays >= daysInHistoryMonth} onChange={event => setTrendStart(Number(event.target.value))}/></div>
     </section>
-    <section className="card history-card"><div className="section-heading"><div><span className="section-kicker">JULY DATA</span><h2>历史数据月历</h2></div><span className="count-pill">{monthValidValues.length} 天</span></div>
+    <section className="card history-card"><div className="section-heading"><div><span className="section-kicker">ARCHIVE</span><h2>历史数据月历</h2></div><input className="month-picker" type="month" value={historyMonth} onChange={event => { setHistoryMonth(event.target.value); setSelectedHistoryDay(1); setTrendStart(0); }} /></div>
       <div className="data-weekdays">{["一","二","三","四","五","六","日"].map(day => <span key={day}>{day}</span>)}</div>
-      <div className="data-month-grid"><i/><i/>{monthData.map((number,index) => <button className={`${selectedHistoryDay === index + 1 ? "selected " : ""}${Number.isFinite(number) ? "has-value" : ""}`} onClick={() => openHistoryDay(index + 1)} key={index}><b>{index + 1}</b><small>{Number.isFinite(number) ? `${number}${type === "睡眠时长" ? "h" : ""}` : "—"}</small></button>)}</div>
-      <div className="history-editor"><div><span>7 月 {selectedHistoryDay} 日 · {type}</span><div className="value-field"><input value={historyDraft} onChange={event => setHistoryDraft(event.target.value)} inputMode="decimal" placeholder="输入数值"/><b>{unit}</b></div></div><button className="save-history" onClick={saveHistoryDay}>保存修改</button><button className="delete-history" onClick={() => { deleteRecord(selectedHistoryDay - 1); setHistoryDraft(""); }}>删除数据</button></div>
+      <div className="data-month-grid">{Array.from({length:historyOffset},(_,index)=><i key={`blank-${index}`}/>) }{monthData.map((number,index) => <button className={`${selectedHistoryDay === index + 1 ? "selected " : ""}${Number.isFinite(number) ? "has-value" : ""}`} onClick={() => openHistoryDay(index + 1)} key={index}><b>{index + 1}</b><small>{Number.isFinite(number) ? `${number}${type === "睡眠时长" ? "h" : ""}` : "—"}</small></button>)}</div>
+      <div className="history-editor"><div><span>{historyYear} 年 {historyMonthNumber} 月 {selectedHistoryDay} 日 · {type}</span><div className="value-field"><input value={historyDraft} onChange={event => setHistoryDraft(event.target.value)} inputMode="decimal" placeholder="输入数值"/><b>{unit}</b></div></div><button className="save-history" onClick={saveHistoryDay}>保存修改</button><button className="delete-history" onClick={() => { deleteRecord(selectedHistoryDay - 1); setHistoryDraft(""); }}>删除数据</button></div>
+      <p className="archive-note">数据按完整日期保存在当前工作台中，切换年月即可回溯；开启云同步后也会同步这份日期档案。</p>
     </section>
     <section className="stats-row"><div><small>本周变化</small><b>−0.3 kg</b></div><div><small>平均睡眠</small><b>7.3 h</b></div></section>
   </>;
