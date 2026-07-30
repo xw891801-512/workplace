@@ -518,6 +518,10 @@ function MonthPlan() {
           <div className="event-form-top"><input autoFocus value={eventDraft.title} onChange={event => setEventDraft(current => ({ ...current, title: event.target.value }))} placeholder="事件名称" /><select value={eventDraft.type} onChange={event => setEventDraft(current => ({ ...current, type: event.target.value }))}><option value="deadline">Deadline</option><option value="range">持续时段</option><option value="plan">普通安排</option></select></div>
           <div className="event-form-bottom"><label>开始<input type="number" min="1" max="31" value={eventDraft.start} onChange={event => setEventDraft(current => ({ ...current, start: event.target.value }))}/></label><label>结束<input type="number" min="1" max="31" value={eventDraft.end} onChange={event => setEventDraft(current => ({ ...current, end: event.target.value }))}/></label><button type="submit">添加到日历</button></div>
         </form>
+        <div className="event-manage-list"><span className="section-kicker">已添加的重要时段</span>
+          {events.filter(item=>(item.month||"2026-07")===viewMonth).map(item=><div className="event-manage-row" key={item.id}><div><b>{item.title}</b><small>{item.start===item.end?`${item.start} 日`:`${item.start}—${item.end} 日`} · {item.type==="deadline"?"Deadline":item.type==="range"?"持续时段":"普通安排"}</small></div><button type="button" onClick={()=>setEvents(current=>current.filter(event=>event.id!==item.id))}>删除</button></div>)}
+          {!events.some(item=>(item.month||"2026-07")===viewMonth)&&<p className="empty-note">这个月还没有重要时段。</p>}
+        </div>
       </section>
     </div>}
   </>;
@@ -679,8 +683,6 @@ function HabitPage({ habits, setHabits }) {
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
-  const [dragIndex, setDragIndex] = useState(null);
-  const longPressTimer = useRef(null);
   const [habitDraft, setHabitDraft] = useState({ name: "", icon: "✨", color: "coral" });
   const toggleToday = id => setHabits(v=>v.map(h=>{
     if (h.id !== id) return h;
@@ -711,27 +713,6 @@ function HabitPage({ habits, setHabits }) {
     next.splice(target, 0, moved);
     return next;
   });
-  const startHabitDrag = (event, index) => {
-    const handle = event.currentTarget;
-    longPressTimer.current = window.setTimeout(() => {
-      setDragIndex(index);
-      handle.setPointerCapture?.(event.pointerId);
-      navigator.vibrate?.(25);
-    }, 380);
-  };
-  const moveHabitDrag = event => {
-    if (dragIndex === null) return;
-    const row = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-habit-index]");
-    const target = Number(row?.dataset.habitIndex);
-    if (Number.isInteger(target) && target !== dragIndex) {
-      moveHabit(dragIndex, target);
-      setDragIndex(target);
-    }
-  };
-  const endHabitDrag = () => {
-    window.clearTimeout(longPressTimer.current);
-    setDragIndex(null);
-  };
   const deleteHabit = id => {
     if (pendingDelete !== id) {
       setPendingDelete(id);
@@ -748,7 +729,7 @@ function HabitPage({ habits, setHabits }) {
         <div className="habit-options"><label>图标<select value={habitDraft.icon} onChange={event => setHabitDraft(current => ({ ...current, icon: event.target.value }))}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select></label><label>颜色<select value={habitDraft.color} onChange={event => setHabitDraft(current => ({ ...current, color: event.target.value }))}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label></div>
         <button type="submit">创建习惯</button>
       </form>}
-      {editMode && <div className="habit-edit-list">{habits.map((habit, index) => <div className={dragIndex === index ? "habit-edit-row dragging" : "habit-edit-row"} data-habit-index={index} key={habit.id}><button className="habit-drag-handle" aria-label={`长按拖动${habit.name}`} onPointerDown={event => startHabitDrag(event,index)} onPointerMove={moveHabitDrag} onPointerUp={endHabitDrag} onPointerCancel={endHabitDrag}>⋮⋮</button><input value={habit.name} onChange={event => updateHabit(habit.id, { name: event.target.value })}/><select value={habit.icon} onChange={event => updateHabit(habit.id, { icon: event.target.value })}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select><select value={habit.color} onChange={event => updateHabit(habit.id, { color: event.target.value })}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select><button className={pendingDelete === habit.id ? "confirm-delete" : ""} onClick={() => deleteHabit(habit.id)}>{pendingDelete === habit.id ? "确认" : "删除"}</button></div>)}</div>}
+      {editMode && <div className="habit-edit-list">{habits.map((habit, index) => <div className="habit-edit-row" key={habit.id}><div className="habit-order"><button disabled={index===0} onClick={()=>moveHabit(index,index-1)} aria-label={`上移${habit.name}`}>↑</button><button disabled={index===habits.length-1} onClick={()=>moveHabit(index,index+1)} aria-label={`下移${habit.name}`}>↓</button></div><input value={habit.name} onChange={event => updateHabit(habit.id, { name: event.target.value })}/><select value={habit.icon} onChange={event => updateHabit(habit.id, { icon: event.target.value })}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select><select value={habit.color} onChange={event => updateHabit(habit.id, { color: event.target.value })}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select><button className={pendingDelete === habit.id ? "confirm-delete" : ""} onClick={() => deleteHabit(habit.id)}>{pendingDelete === habit.id ? "确认" : "删除"}</button></div>)}</div>}
       <div className="habit-today">{habits.map(h=><button key={h.id} className={`${h.days.includes(today)?"habit-pill checked":"habit-pill"} editable`} onClick={()=>toggleToday(h.id)}><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{h.days.includes(today)?"今天已打卡 · 点击取消":"点击完成打卡"}</small></button>)}</div>
     </section>
     <section className="card heatmap-card"><div className="section-heading"><div><span className="section-kicker">HABIT ARCHIVE</span><h2>月度打卡</h2></div><input className="month-picker" type="month" value={habitMonth} onChange={event => setHabitMonth(event.target.value)} /></div>
