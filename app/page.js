@@ -412,9 +412,18 @@ function MonthPlan() {
         <span className="outside-day">29<small>六月</small></span><span className="outside-day">30</span>
         {days.map(day => {
           const dayEvents = eventForDay(day);
-          return <button key={day} className={`${selected === day ? "selected " : ""}${day === 30 ? "is-today " : ""}${(plans[day]?.length || dayEvents.length) ? "has-plan " : ""}${dayEvents.some(item => item.type === "range") ? "in-range" : ""}`} onClick={() => setSelected(day)}>
+          const visibleEvent = dayEvents[0];
+          const calendarColumn = (day + 1) % 7;
+          const startsRangeRow = visibleEvent?.type === "range" && (day === visibleEvent.start || calendarColumn === 0);
+          const rangeSpan = startsRangeRow ? Math.min(visibleEvent.end - day + 1, 7 - calendarColumn) : 0;
+          return <button key={day} className={`${selected === day ? "selected " : ""}${day === 30 ? "is-today " : ""}${(plans[day]?.length || dayEvents.length) ? "has-plan " : ""}${dayEvents.some(item => item.type === "range") ? "in-range " : ""}${startsRangeRow ? "range-row-start" : ""}`} onClick={() => setSelected(day)}>
             <b>{day}</b>
-            {dayEvents.slice(0, 1).map(item => <small className={`calendar-event ${item.type}`} title={item.title} key={item.id}>{item.type === "deadline" ? `⚠ ${item.title}` : item.title}</small>)}
+            {visibleEvent && visibleEvent.type !== "range" && <small className={`calendar-event ${visibleEvent.type}`} title={visibleEvent.title}>{visibleEvent.type === "deadline" ? `⚠ ${visibleEvent.title}` : visibleEvent.title}</small>}
+            {startsRangeRow && <small
+              className="calendar-event range continuous"
+              title={visibleEvent.title}
+              style={{ width: `calc(${rangeSpan * 100}% + ${(rangeSpan - 1) * 5}px)` }}
+            >▣ {visibleEvent.title}</small>}
           </button>;
         })}
         <span className="outside-day">1<small>八月</small></span><span className="outside-day">2</span>
