@@ -367,8 +367,8 @@ button { color: inherit; }
 .habit-title .checkin-icon { width:35px; height:35px; }.habit-title b { font-size:11px; }.habit-title small { color:var(--muted); font-size:9px; }
 .heat-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:5px; color:#92858b; text-align:center; font-size:10px; font-weight:800; }
 .heat-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-.heat-grid button, .heat-grid .blank { aspect-ratio:1; display:grid; place-items:center; padding:0; border:0; border-radius:7px; color:#81766e; background:#faf4e8; font-size:12px; cursor:pointer; }
-.heat-grid .blank { background:#fcf9f3; cursor:default; }
+.heat-grid button, .heat-grid .blank { aspect-ratio:1; display:grid; place-items:center; padding:0; border:0; border-radius:7px; color:#857a7f; background:#f8f3f5; font-size:12px; cursor:pointer; }
+.heat-grid .blank { background:#faf7f8; cursor:default; }
 .heat-grid button.today { outline:2px solid #d87998; outline-offset:1px; font-weight:900; }
 .heat-grid.coral button.hit { color:#a45d73; background:#f7dce4; }.heat-grid.blue button.hit { color:#66829d; background:#dfeaf4; }.heat-grid.lilac button.hit { color:#79698f; background:#e9e2f3; }
 .mint { color:#4f8b7a; background:#dcf3e9; }
