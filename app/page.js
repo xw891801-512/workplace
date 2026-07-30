@@ -35,6 +35,11 @@ const meals = [
   { key: "dinner", icon: "☾", label: "晚餐" }
 ];
 
+const localDateKey = (date = new Date()) => {
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+};
+
 function usePersistentState(key, initialValue) {
   const [value, setValue] = useState(initialValue);
   const [ready, setReady] = useState(false);
@@ -77,6 +82,8 @@ export default function TodayPage() {
   const [activeNav, setActiveNav] = useState("今天");
   const [openGroups, setOpenGroups] = useState({ 计划: false, 打卡: false });
   const [tasks, setTasks] = useState(starterTasks);
+  const [taskDate, setTaskDate] = useState("2026-07-30");
+  const [taskArchives, setTaskArchives] = useState({});
   const [habits, setHabits] = useState(habitSeed);
   const [health, setHealth] = useState({
     morning: "52.6",
@@ -100,7 +107,21 @@ export default function TodayPage() {
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("winnie-workbench") || "null");
-      if (saved?.tasks) setTasks(saved.tasks);
+      if (saved?.tasks) {
+        const today = localDateKey();
+        const savedDate = saved.taskDate || "2026-07-30";
+        if (savedDate !== today) {
+          const unfinished = saved.tasks.filter(task => !task.done);
+          const shouldCarry = unfinished.length > 0 && window.confirm(`昨天的今日清单还有 ${unfinished.length} 项没有完成，是否同步到今天的任务中？`);
+          setTaskArchives({ ...(saved.taskArchives || {}), [savedDate]: saved.tasks });
+          setTasks(shouldCarry ? unfinished.map(task => ({ ...task, id: `${today}-${task.id}`, done: false })) : []);
+          setTaskDate(today);
+        } else {
+          setTasks(saved.tasks);
+          setTaskDate(savedDate);
+          setTaskArchives(saved.taskArchives || {});
+        }
+      }
       if (saved?.habits) setHabits(saved.habits);
       if (saved?.health) setHealth(saved.health);
       if (saved?.mealRecords) {
@@ -115,13 +136,28 @@ export default function TodayPage() {
   useEffect(() => {
     if (!storageReady) return;
     const safeMeals = Object.fromEntries(Object.entries(mealRecords).map(([key, item]) => [key, { done: item.done, photo: null }]));
-    const serialized = JSON.stringify({ tasks, habits, health, mealRecords: safeMeals });
+    const serialized = JSON.stringify({ tasks, taskDate, taskArchives, habits, health, mealRecords: safeMeals });
     localStorage.setItem("winnie-workbench", serialized);
     if (lastWorkbenchSave.current !== null && lastWorkbenchSave.current !== serialized) {
       window.dispatchEvent(new Event("winnie:data-change"));
     }
     lastWorkbenchSave.current = serialized;
-  }, [tasks, habits, health, mealRecords, storageReady]);
+  }, [tasks, taskDate, taskArchives, habits, health, mealRecords, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    const checkDateRollover = () => {
+      const today = localDateKey();
+      if (today === taskDate) return;
+      setTaskArchives(current => ({ ...current, [taskDate]: tasks }));
+      const unfinished = tasks.filter(task => !task.done);
+      const shouldCarry = unfinished.length > 0 && window.confirm(`今日清单还有 ${unfinished.length} 项没有完成，是否同步到今天的任务中？`);
+      setTasks(shouldCarry ? unfinished.map(task => ({ ...task, id: `${today}-${task.id}`, done: false })) : []);
+      setTaskDate(today);
+    };
+    const timer = window.setInterval(checkDateRollover, 60_000);
+    return () => window.clearInterval(timer);
+  }, [storageReady, taskDate, tasks]);
 
   useEffect(() => {
     const updateGreeting = () => {
@@ -347,16 +383,16 @@ export default function TodayPage() {
           </div>
         </section>
 
-      </section> : <FeaturePage page={activeNav} tasks={tasks} setTasks={setTasks} habits={habits} setHabits={setHabits} health={health} setHealth={setHealth} mealRecords={mealRecords} setMealRecords={setMealRecords} />}
+      </section> : <FeaturePage page={activeNav} tasks={tasks} setTasks={setTasks} taskDate={taskDate} taskArchives={taskArchives} habits={habits} setHabits={setHabits} health={health} setHealth={setHealth} mealRecords={mealRecords} setMealRecords={setMealRecords} />}
     </main>
   );
 }
 
-function FeaturePage({ page, tasks, setTasks, habits, setHabits, health, setHealth, mealRecords, setMealRecords }) {
+function FeaturePage({ page, tasks, setTasks, taskDate, taskArchives, habits, setHabits, health, setHealth, mealRecords, setMealRecords }) {
   const pageMap = {
     "月日历": <MonthPlan />,
     "周计划": <WeekPlan />,
-    "日计划": <DayPlan items={tasks} setItems={setTasks} />,
+    "日计划": <DayPlan items={tasks} setItems={setTasks} taskDate={taskDate} taskArchives={taskArchives} />,
     "提醒": <ReminderPage />,
     "习惯": <HabitPage habits={habits} setHabits={setHabits} />,
     "数据": <DataPage health={health} setHealth={setHealth} />,
@@ -377,6 +413,7 @@ function PageIntro({ eyebrow, title, copy, icon }) {
 
 function MonthPlan() {
   const [selected, setSelected] = useState(30);
+  const [viewMonth, setViewMonth] = useState("2026-07");
   const [showEventModal, setShowEventModal] = useState(false);
   const [plans, setPlans] = usePersistentState("winnie-month-plans", { 30: ["完成工作台页面规划"] });
   const [draft, setDraft] = useState("");
@@ -385,11 +422,16 @@ function MonthPlan() {
     { id: 2, title: "旅行", type: "range", start: 24, end: 27 }
   ]);
   const [eventDraft, setEventDraft] = useState({ title: "", type: "deadline", start: 30, end: 30 });
-  const days = Array.from({ length: 31 }, (_, index) => index + 1);
+  const [viewYear, viewMonthNumber] = viewMonth.split("-").map(Number);
+  const daysInMonth = new Date(viewYear, viewMonthNumber, 0).getDate();
+  const monthOffset = (new Date(viewYear, viewMonthNumber - 1, 1).getDay() + 6) % 7;
+  const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
+  const planKey = day => `${viewMonth}-${String(day).padStart(2, "0")}`;
+  const plansForDay = day => plans[planKey(day)] || (viewMonth === "2026-07" ? plans[day] : []) || [];
   const addPlan = event => {
     event.preventDefault();
     if (!draft.trim()) return;
-    setPlans(current => ({ ...current, [selected]: [...(current[selected] || []), draft.trim()] }));
+    setPlans(current => ({ ...current, [planKey(selected)]: [...plansForDay(selected), draft.trim()] }));
     setDraft("");
   };
   const addCalendarEvent = event => {
@@ -397,26 +439,26 @@ function MonthPlan() {
     if (!eventDraft.title.trim()) return;
     const start = Math.min(Number(eventDraft.start), Number(eventDraft.end));
     const end = Math.max(Number(eventDraft.start), Number(eventDraft.end));
-    setEvents(current => [...current, { ...eventDraft, id: Date.now(), title: eventDraft.title.trim(), start, end }]);
+    setEvents(current => [...current, { ...eventDraft, month: viewMonth, id: Date.now(), title: eventDraft.title.trim(), start, end }]);
     setEventDraft(current => ({ ...current, title: "" }));
     setShowEventModal(false);
   };
-  const eventForDay = day => events.filter(item => day >= item.start && day <= item.end);
-  const nearbyDays = Array.from({ length: 7 }, (_, index) => selected - 3 + index).filter(day => day >= 1 && day <= 31);
+  const eventForDay = day => events.filter(item => (item.month || "2026-07") === viewMonth && day >= item.start && day <= item.end);
+  const nearbyDays = Array.from({ length: 7 }, (_, index) => selected - 3 + index).filter(day => day >= 1 && day <= daysInMonth);
   return <>
     <PageIntro eyebrow="PLAN · JULY" icon="▦" title="月日历" copy="把重要安排和大的 deadline 放进这个月。" />
     <section className="card calendar-card">
-      <div className="section-heading"><h2>2026 年 7 月</h2><div className="calendar-heading-actions"><span className="count-pill">今天 30</span><button className="calendar-add" type="button" aria-label="添加重要时段" onClick={() => setShowEventModal(true)}>＋</button></div></div>
+      <div className="section-heading"><input className="month-picker" type="month" value={viewMonth} onChange={event => { setViewMonth(event.target.value); setSelected(1); }} /><div className="calendar-heading-actions"><span className="count-pill">{viewYear} 年 {viewMonthNumber} 月</span><button className="calendar-add" type="button" aria-label="添加重要时段" onClick={() => setShowEventModal(true)}>＋</button></div></div>
       <div className="week-labels">{["一","二","三","四","五","六","日"].map(d => <span key={d}>{d}</span>)}</div>
       <div className="month-grid">
-        <span className="outside-day">29<small>六月</small></span><span className="outside-day">30</span>
+        {Array.from({length:monthOffset},(_,index)=><span className="outside-day" key={`blank-${index}`} />)}
         {days.map(day => {
           const dayEvents = eventForDay(day);
           const visibleEvent = dayEvents[0];
-          const calendarColumn = (day + 1) % 7;
+          const calendarColumn = (monthOffset + day - 1) % 7;
           const startsRangeRow = visibleEvent?.type === "range" && (day === visibleEvent.start || calendarColumn === 0);
           const rangeSpan = startsRangeRow ? Math.min(visibleEvent.end - day + 1, 7 - calendarColumn) : 0;
-          return <button key={day} className={`${selected === day ? "selected " : ""}${day === 30 ? "is-today " : ""}${(plans[day]?.length || dayEvents.length) ? "has-plan " : ""}${dayEvents.some(item => item.type === "range") ? "in-range " : ""}${startsRangeRow ? "range-row-start" : ""}`} onClick={() => setSelected(day)}>
+          return <button key={day} className={`${selected === day ? "selected " : ""}${planKey(day) === localDateKey() ? "is-today " : ""}${(plansForDay(day).length || dayEvents.length) ? "has-plan " : ""}${dayEvents.some(item => item.type === "range") ? "in-range " : ""}${startsRangeRow ? "range-row-start" : ""}`} onClick={() => setSelected(day)}>
             <b>{day}</b>
             {visibleEvent && visibleEvent.type !== "range" && <small className={`calendar-event ${visibleEvent.type}`} title={visibleEvent.title}>{visibleEvent.type === "deadline" ? `⚠ ${visibleEvent.title}` : visibleEvent.title}</small>}
             {startsRangeRow && <small
@@ -426,21 +468,20 @@ function MonthPlan() {
             >▣ {visibleEvent.title}</small>}
           </button>;
         })}
-        <span className="outside-day">1<small>八月</small></span><span className="outside-day">2</span>
       </div>
     </section>
     <section className="card agenda-card">
       <span className="section-kicker">DAILY OVERVIEW</span><h2>前后日期事项</h2>
       <div className="agenda-strip">
         {nearbyDays.map(day => <button type="button" className={day === selected ? "agenda-day-card active" : "agenda-day-card"} key={day} onClick={() => setSelected(day)}>
-          <span>7 月 {day} 日{day === 30 ? " · 今天" : ""}</span>
-          {(plans[day] || []).map((plan, index) => <div className="agenda-item" key={`${plan}-${index}`}><span className="agenda-dot work" /><div><b>{plan}</b><small>工作 · 全天</small></div></div>)}
+          <span>{viewMonthNumber} 月 {day} 日{planKey(day) === localDateKey() ? " · 今天" : ""}</span>
+          {plansForDay(day).map((plan, index) => <div className="agenda-item" key={`${plan}-${index}`}><span className="agenda-dot work" /><div><b>{plan}</b><small>工作 · 全天</small></div></div>)}
           {eventForDay(day).map(item => <div className="agenda-item" key={item.id}><span className={`agenda-dot ${item.type}`} /><div><b>{item.type === "deadline" ? `⚠ ${item.title}` : item.title}</b><small>{item.type === "deadline" ? "Deadline" : item.type === "range" ? `${item.start}—${item.end} 日` : "月度安排"}</small></div></div>)}
-          {!plans[day]?.length && !eventForDay(day).length && <small className="empty-note">暂无安排</small>}
+          {!plansForDay(day).length && !eventForDay(day).length && <small className="empty-note">暂无安排</small>}
         </button>)}
       </div>
       <form className="inline-add-form" onSubmit={addPlan}>
-        <input value={draft} onChange={event => setDraft(event.target.value)} placeholder={`添加 7 月 ${selected} 日的安排`} />
+        <input value={draft} onChange={event => setDraft(event.target.value)} placeholder={`添加 ${viewMonthNumber} 月 ${selected} 日的安排`} />
         <button type="submit">添加</button>
       </form>
     </section>
@@ -462,7 +503,14 @@ function WeekPlan() {
     { id: 2, text: "完成周计划原型", done: false },
     { id: 3, text: "运动 30 分钟", done: false }
   ]);
-  const days = ["27 周一","28 周二","29 周三","30 周四","31 周五","01 周六","02 周日"];
+  const [weekStart, setWeekStart] = useState("2026-07-27");
+  const weekStartDate = new Date(`${weekStart}T12:00:00`);
+  const weekdayNames = ["周一","周二","周三","周四","周五","周六","周日"];
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStartDate);
+    date.setDate(date.getDate() + index);
+    return { date: localDateKey(date), day: String(date.getDate()).padStart(2, "0"), label: `${String(date.getDate()).padStart(2, "0")} ${weekdayNames[index]}` };
+  });
   const [weekTasks, setWeekTasks] = usePersistentState("winnie-week-tasks", [
     { id: 1, day: "30 周四", text: "完成本周计划的第一版", done: false },
     { id: 2, day: "01 周六", text: "看电影，休息一下", done: false }
@@ -487,8 +535,15 @@ function WeekPlan() {
   const addWeekTask = (event, day) => {
     event.preventDefault();
     if (!taskDraft.trim()) return;
-    setWeekTasks(current => [...current, { id: Date.now(), day, text: taskDraft.trim(), done: false }]);
+    setWeekTasks(current => [...current, { id: Date.now(), date: day.date, day: day.label, text: taskDraft.trim(), done: false }]);
     setTaskDraft("");
+    setAddingDay(null);
+  };
+  const taskBelongsToDay = (task, day) => task.date ? task.date === day.date : (weekStart === "2026-07-27" && task.day.includes(day.day));
+  const shiftWeek = amount => {
+    const date = new Date(`${weekStart}T12:00:00`);
+    date.setDate(date.getDate() + amount * 7);
+    setWeekStart(localDateKey(date));
     setAddingDay(null);
   };
   return <>
@@ -499,20 +554,21 @@ function WeekPlan() {
         <button className="round-check" aria-label={item.done ? "取消完成" : "标记完成"} onClick={() => setPriorities(v => v.map(x => x.id === item.id ? {...x,done:!x.done}:x))} />
       </div>)}
     </section>
-    <section className="card week-card"><div className="section-heading"><h2>7 月 27 日 · 8 月 2 日</h2><span className="count-pill">{weekTasks.filter(item => item.done).length}/{weekTasks.length}</span></div>
-      {days.map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b>{day}</b><div className="week-day-tasks">
-        {weekTasks.filter(task => task.day.includes(day.slice(0, 2))).map(task => <div className={swipedId === task.id ? "swipe-task revealed" : "swipe-task"} key={task.id} onTouchStart={startSwipe} onTouchEnd={event => endSwipe(event, task.id)}>
+    <section className="card week-card"><div className="section-heading"><div><h2>{days[0].date.slice(5).replace("-"," 月 ")} 日 · {days[6].date.slice(5).replace("-"," 月 ")} 日</h2><small className="week-history-label">可切换查看最近周计划</small></div><div className="week-nav"><button onClick={()=>shiftWeek(-1)} aria-label="上一周">‹</button><button onClick={()=>shiftWeek(1)} aria-label="下一周">›</button></div></div>
+      {days.map((day,index) => <div className={day.date === localDateKey() ? "week-row today" : "week-row"} key={day.date}><b>{day.label}</b><div className="week-day-tasks">
+        {weekTasks.filter(task => taskBelongsToDay(task, day)).map(task => <div className={swipedId === task.id ? "swipe-task revealed" : "swipe-task"} key={task.id} onTouchStart={startSwipe} onTouchEnd={event => endSwipe(event, task.id)}>
           <button className="swipe-delete" onClick={() => { setWeekTasks(v => v.filter(x => x.id !== task.id)); setSwipedId(null); }}>删除</button>
-          <div className={task.done ? "week-task done" : "week-task"}><textarea rows="1" value={task.text} onInput={autoGrow} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/><button className="round-check" aria-label={task.done ? "取消完成" : "标记完成"} onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}/></div>
+          <div className={task.done ? "week-task done" : "week-task"}><button className="square-check" aria-label={task.done ? "取消完成" : "标记完成"} onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}/><textarea rows="1" value={task.text} onInput={autoGrow} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/></div>
         </div>)}
-        {addingDay === day && <form className="week-inline-add" onSubmit={event => addWeekTask(event, day)}><input autoFocus value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder={`添加${day.slice(3)}任务`} /><button type="submit">添加</button></form>}
-      </div><button className="week-day-add" aria-label={`添加${day}任务`} onClick={() => { setAddingDay(current => current === day ? null : day); setTaskDraft(""); }}>＋</button></div>)}
+        {addingDay === day.date && <form className="week-inline-add" onSubmit={event => addWeekTask(event, day)}><input autoFocus value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder={`添加${day.label.slice(3)}任务`} /><button type="submit">添加</button></form>}
+      </div><button className="week-day-add" aria-label={`添加${day.label}任务`} onClick={() => { setAddingDay(current => current === day.date ? null : day.date); setTaskDraft(""); }}>＋</button></div>)}
     </section>
   </>;
 }
 
-function DayPlan({ items, setItems }) {
+function DayPlan({ items, setItems, taskDate, taskArchives }) {
   const [drafts, setDrafts] = useState({ 工作: "", 生活: "", 娱乐: "" });
+  const [viewDate, setViewDate] = useState(taskDate);
   const [swipedId, setSwipedId] = useState(null);
   const swipeStartX = useRef(null);
   const startSwipe = event => { swipeStartX.current = event.touches[0].clientX; };
@@ -530,11 +586,15 @@ function DayPlan({ items, setItems }) {
     setItems(current => [...current, { id: Date.now(), text: title, group, done: false }]);
     setDrafts(current => ({ ...current, [group]: "" }));
   };
+  useEffect(() => setViewDate(taskDate), [taskDate]);
+  const viewingToday = viewDate === taskDate;
+  const visibleItems = viewingToday ? items : (taskArchives[viewDate] || []);
   return <>
     <PageIntro eyebrow="THURSDAY · JUL 30" icon="☑" title="日计划表" copy="把今天拆成清楚、可以完成的小步骤。" />
-    {["工作","生活","娱乐"].map(group => <section className="card day-section" key={group}><div className="section-heading"><h2>{group}</h2><span className="count-pill">{items.filter(x=>x.group===group&&x.done).length}/{items.filter(x=>x.group===group).length}</span></div>
-      {items.filter(x=>x.group===group).map(item=><div className={swipedId===item.id?"swipe-task day-swipe revealed":"swipe-task day-swipe"} key={item.id} onTouchStart={startSwipe} onTouchEnd={event=>endSwipe(event,item.id)}><button className="swipe-delete" onClick={()=>{setItems(v=>v.filter(x=>x.id!==item.id));setSwipedId(null);}}>删除</button><div className={item.done?"editable-plan done":"editable-plan"}><input value={item.text} onChange={event=>setItems(v=>v.map(x=>x.id===item.id?{...x,text:event.target.value}:x))}/><button className="round-check" aria-label={item.done?"取消完成":"标记完成"} onClick={()=>setItems(v=>v.map(x=>x.id===item.id?{...x,done:!x.done}:x))}/></div></div>)}
-      <form className="inline-add-form compact" onSubmit={event => addItem(event, group)}><input value={drafts[group]} onChange={event=>setDrafts(current=>({...current,[group]:event.target.value}))} placeholder={`添加${group}任务`} /><button type="submit">添加</button></form>
+    <section className="card plan-date-nav"><div><span className="section-kicker">PLAN ARCHIVE</span><h2>{viewingToday ? "今天的计划" : "历史计划回顾"}</h2></div><input type="date" value={viewDate} max={taskDate} onChange={event => setViewDate(event.target.value)} /></section>
+    {["工作","生活","娱乐"].map(group => <section className="card day-section" key={group}><div className="section-heading"><h2>{group}</h2><span className="count-pill">{visibleItems.filter(x=>x.group===group&&x.done).length}/{visibleItems.filter(x=>x.group===group).length}</span></div>
+      {visibleItems.filter(x=>x.group===group).map(item=><div className={swipedId===item.id?"swipe-task day-swipe revealed":"swipe-task day-swipe"} key={item.id} onTouchStart={viewingToday?startSwipe:undefined} onTouchEnd={viewingToday?event=>endSwipe(event,item.id):undefined}><button className="swipe-delete" onClick={()=>{setItems(v=>v.filter(x=>x.id!==item.id));setSwipedId(null);}}>删除</button><div className={item.done?"editable-plan done":"editable-plan"}><input readOnly={!viewingToday} value={item.text} onChange={event=>setItems(v=>v.map(x=>x.id===item.id?{...x,text:event.target.value}:x))}/><button disabled={!viewingToday} className="round-check" aria-label={item.done?"取消完成":"标记完成"} onClick={()=>setItems(v=>v.map(x=>x.id===item.id?{...x,done:!x.done}:x))}/></div></div>)}
+      {viewingToday && <form className="inline-add-form compact" onSubmit={event => addItem(event, group)}><input value={drafts[group]} onChange={event=>setDrafts(current=>({...current,[group]:event.target.value}))} placeholder={`添加${group}任务`} /><button type="submit">添加</button></form>}
     </section>)}
   </>;
 }
