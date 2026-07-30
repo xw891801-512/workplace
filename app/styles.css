@@ -279,21 +279,40 @@ button { color: inherit; }
 .month-grid button.has-plan::after { content:""; position:absolute; bottom:5px; left:50%; width:4px; height:4px; transform:translateX(-50%); border-radius:50%; background:var(--rose); }
 .month-grid button.selected { color: white; background: var(--rose); box-shadow: 0 7px 14px rgba(225,113,144,.25); }
 .month-grid button.selected::after { background:white; }
+.month-grid button.is-today { outline:3px solid #e86f94; outline-offset:2px; color:#c94d73; font-weight:900; background:#ffe3eb; }
+.month-grid button.is-today.selected { color:white; background:#df6788; outline-color:#b9456b; }
 .agenda-card h2 { margin: 5px 0 13px; }
 .agenda-item { display:flex; align-items:center; gap:10px; padding:12px; border-radius:15px; background:#fff8fa; }
 .agenda-item > div { display:grid; gap:3px; }
 .agenda-item b { font-size:12px; }.agenda-item small { color:var(--muted); font-size:9px; }
 .agenda-dot { width:9px; height:9px; border-radius:50%; }.agenda-dot.work { background:#90a9db; }
 .empty-note { margin:10px 0; color:var(--muted); font-size:10px; }
+.inline-add-form { display:grid; grid-template-columns:1fr auto; gap:7px; margin-top:12px; }
+.inline-add-form input, .week-add-form input, .week-add-form select { min-width:0; padding:11px 12px; border:1px solid #eadde2; border-radius:13px; outline:none; color:var(--ink); background:#fffafb; font-size:11px; }
+.inline-add-form input:focus, .week-add-form input:focus { border-color:var(--rose); }
+.inline-add-form button, .week-add-form > button { padding:9px 13px; border:0; border-radius:12px; color:white; background:var(--rose); font-size:10px; font-weight:800; cursor:pointer; }
+.inline-add-form.compact { margin-top:9px; }
 
 .focus-card > h2 { margin:5px 0 12px; }
 .plan-line { width:100%; display:flex; align-items:center; gap:10px; padding:12px 2px; border:0; border-bottom:1px dashed var(--line); background:transparent; text-align:left; font-size:12px; cursor:pointer; }
 .plan-line > span { flex:0 0 22px; height:22px; display:grid; place-items:center; border:1.5px solid #ebcdd5; border-radius:7px; color:white; }
 .plan-line.done { color:#b2a6ab; text-decoration:line-through; }
 .plan-line.done > span { border-color:var(--rose); background:var(--rose); }
+.editable-plan { display:grid; grid-template-columns:23px minmax(0,1fr) 22px; align-items:center; gap:8px; padding:8px 1px; border-bottom:1px dashed var(--line); }
+.editable-plan > button:first-child, .week-task > button:first-child { width:22px; height:22px; display:grid; place-items:center; padding:0; border:1.5px solid #ebcdd5; border-radius:7px; color:white; background:white; cursor:pointer; }
+.editable-plan > input, .week-task > input { min-width:0; width:100%; padding:7px 5px; border:1px solid transparent; border-radius:8px; outline:none; color:var(--ink); background:transparent; font-size:11px; }
+.editable-plan > input:focus, .week-task > input:focus { border-color:#efcad5; background:#fff8fa; }
+.editable-plan.done > button:first-child, .week-task.done > button:first-child { border-color:var(--rose); background:var(--rose); }
+.editable-plan.done > input, .week-task.done > input { color:#b5a9ae; text-decoration:line-through; }
+.delete-mini { width:22px; height:22px; padding:0; border:0; border-radius:8px; color:#b89fa8; background:#f8f0f3; cursor:pointer; }
 .week-row { display:grid; grid-template-columns:50px 1fr; align-items:center; gap:10px; padding:12px 5px; border-bottom:1px dashed var(--line); }
 .week-row b { color:#a08e97; font-size:10px; }.week-row span { font-size:11px; }
 .week-row.today { margin:5px -5px; padding-left:10px; padding-right:10px; border:0; border-radius:14px; color:var(--rose-deep); background:var(--blush); }
+.week-day-tasks { min-width:0; display:grid; gap:3px; }
+.week-task { display:grid; grid-template-columns:22px minmax(0,1fr) 22px; align-items:center; gap:5px; }
+.empty-day { color:#b7aab0; font-size:10px !important; }
+.week-add-form { display:grid; grid-template-columns:72px minmax(0,1fr) auto; gap:6px; margin-top:13px; padding-top:13px; border-top:1px solid var(--line); }
+.week-add-form select { padding-left:7px; padding-right:4px; font-size:9px; }
 .day-section .section-heading { margin-bottom:7px; }
 
 .reminder-row { display:grid; grid-template-columns:40px 1fr 42px; align-items:center; gap:9px; padding:12px 0; border-bottom:1px dashed var(--line); }
@@ -308,19 +327,23 @@ button { color: inherit; }
 .habit-pill b { font-size:10px; }.habit-pill small { color:var(--muted); font-size:8px; }
 .habit-title { display:grid; grid-template-columns:35px 1fr auto; align-items:center; gap:8px; margin:18px 0 9px; }
 .habit-title .checkin-icon { width:35px; height:35px; }.habit-title b { font-size:11px; }.habit-title small { color:var(--muted); font-size:9px; }
+.heat-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:5px; color:#92858b; text-align:center; font-size:10px; font-weight:800; }
 .heat-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-.heat-grid span { aspect-ratio:1; display:grid; place-items:center; border-radius:7px; color:#b2a6aa; background:#f5eff1; font-size:8px; }
-.heat-grid.coral span.hit { color:#b94f70; background:#ffd8e2; }.heat-grid.blue span.hit { color:#557ea9; background:#d9ebff; }.heat-grid.lilac span.hit { color:#76599f; background:#e6dcff; }
+.heat-grid button, .heat-grid .blank { aspect-ratio:1; display:grid; place-items:center; padding:0; border:0; border-radius:7px; color:#81767b; background:#e8e5e6; font-size:10px; cursor:pointer; }
+.heat-grid .blank { background:#f4f1f2; cursor:default; }
+.heat-grid button.today { outline:2px solid #d87998; outline-offset:1px; font-weight:900; }
+.heat-grid.coral button.hit { color:#9f3f5d; background:#ffcbd8; }.heat-grid.blue button.hit { color:#426e9b; background:#cfe6ff; }.heat-grid.lilac button.hit { color:#65458f; background:#dfd1ff; }
 
 .segmented { display:flex; gap:4px; margin:15px 0; padding:4px; border-radius:14px; background:#faf4f6; }
 .current-data-strip { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
 .current-data-strip div { min-width:0; display:grid; gap:5px; padding:12px 7px; border:1px solid var(--line); border-radius:17px; text-align:center; background:white; box-shadow:var(--shadow); }
-.current-data-strip small { color:var(--muted); font-size:8px; }.current-data-strip b { overflow:hidden; color:var(--rose-deep); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
-.segmented button { flex:1; padding:8px 3px; border:0; border-radius:10px; color:var(--muted); background:transparent; font-size:9px; cursor:pointer; }
+.current-data-strip small { color:#81757b; font-size:10px; }.current-data-strip b { overflow:hidden; color:var(--rose-deep); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+.segmented button { flex:1; padding:9px 3px; border:0; border-radius:10px; color:#80747a; background:transparent; font-size:10px; cursor:pointer; }
 .segmented button.active { color:var(--rose-deep); background:white; font-weight:800; box-shadow:0 4px 11px rgba(120,85,100,.09); }
-.data-form label > span { display:block; margin-bottom:7px; color:#988891; font-size:10px; font-weight:800; }
+.data-form label { display:block; margin-top:12px; }
+.data-form label > span { display:block; margin-bottom:7px; color:#7f7379; font-size:12px; font-weight:800; }
 .value-field { display:flex; align-items:center; gap:5px; padding:12px 14px; border:1px solid var(--line); border-radius:14px; }
-.value-field input { min-width:0; width:100%; border:0; outline:0; color:var(--ink); background:transparent; }.value-field b { color:#9c8c94; font-size:10px; }
+.value-field input { min-width:0; width:100%; border:0; outline:0; color:var(--ink); background:transparent; font-size:13px; }.value-field b { color:#7f7379; font-size:11px; }
 .chart-legend { display:flex; align-items:center; gap:5px; color:var(--muted); font-size:9px; }.chart-legend i { width:8px; height:8px; border-radius:50%; background:var(--rose); }
 .chart-card svg { width:100%; margin-top:12px; overflow:visible; }
 .chart-card .grid-lines line { stroke:#eee4e8; stroke-width:1; }.chart-card polyline { fill:none; stroke:var(--rose); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }.chart-card circle { fill:white; stroke:var(--rose); stroke-width:2; }

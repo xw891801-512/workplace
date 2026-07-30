@@ -34,6 +34,27 @@ const meals = [
   { key: "dinner", icon: "☾", label: "晚餐" }
 ];
 
+function usePersistentState(key, initialValue) {
+  const [value, setValue] = useState(initialValue);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) setValue(JSON.parse(saved));
+    } catch {
+      localStorage.removeItem(key);
+    }
+    setReady(true);
+  }, [key]);
+
+  useEffect(() => {
+    if (ready) localStorage.setItem(key, JSON.stringify(value));
+  }, [key, ready, value]);
+
+  return [value, setValue];
+}
+
 export default function TodayPage() {
   const [activeNav, setActiveNav] = useState("今天");
   const [openGroup, setOpenGroup] = useState(null);
@@ -309,11 +330,14 @@ function PageIntro({ eyebrow, title, copy, icon }) {
 
 function MonthPlan() {
   const [selected, setSelected] = useState(30);
-  const [plans, setPlans] = useState({ 30: ["完成工作台页面规划"] });
+  const [plans, setPlans] = usePersistentState("winnie-month-plans", { 30: ["完成工作台页面规划"] });
+  const [draft, setDraft] = useState("");
   const days = Array.from({ length: 31 }, (_, index) => index + 1);
-  const addPlan = () => {
-    const title = window.prompt(`为 7 月 ${selected} 日添加安排`);
-    if (title?.trim()) setPlans(current => ({ ...current, [selected]: [...(current[selected] || []), title.trim()] }));
+  const addPlan = event => {
+    event.preventDefault();
+    if (!draft.trim()) return;
+    setPlans(current => ({ ...current, [selected]: [...(current[selected] || []), draft.trim()] }));
+    setDraft("");
   };
   return <>
     <PageIntro eyebrow="PLAN · JULY" icon="▦" title="月日历" copy="把重要安排和大的 deadline 放进这个月。" />
@@ -322,48 +346,78 @@ function MonthPlan() {
       <div className="week-labels">{["一","二","三","四","五","六","日"].map(d => <span key={d}>{d}</span>)}</div>
       <div className="month-grid">
         <i /><i />
-        {days.map(day => <button key={day} className={`${selected === day ? "selected " : ""}${[4,12,18,27].includes(day) ? "has-plan" : ""}`} onClick={() => setSelected(day)}>{day}</button>)}
+        {days.map(day => <button key={day} className={`${selected === day ? "selected " : ""}${day === 30 ? "is-today " : ""}${(plans[day]?.length || [4,12,18,27].includes(day)) ? "has-plan" : ""}`} onClick={() => setSelected(day)}>{day}</button>)}
       </div>
     </section>
     <section className="card agenda-card">
       <span className="section-kicker">SELECTED DAY</span><h2>7 月 {selected} 日</h2>
       {(plans[selected] || []).map((plan, index) => <div className="agenda-item" key={`${plan}-${index}`}><span className="agenda-dot work" /><div><b>{plan}</b><small>工作 · 全天</small></div></div>)}
       {!plans[selected]?.length && <p className="empty-note">这一天还没有安排。</p>}
-      <button className="primary-button" onClick={addPlan}>＋ 添加月度安排</button>
+      <form className="inline-add-form" onSubmit={addPlan}>
+        <input value={draft} onChange={event => setDraft(event.target.value)} placeholder={`添加 7 月 ${selected} 日的安排`} />
+        <button type="submit">添加</button>
+      </form>
     </section>
   </>;
 }
 
 function WeekPlan() {
-  const initial = ["整理工作台需求","完成周计划原型","运动 30 分钟","整理娱乐收藏"];
-  const [items, setItems] = useState(initial.map((text, id) => ({ id, text, done: id === 0 })));
+  const [priorities, setPriorities] = usePersistentState("winnie-week-priorities", [
+    { id: 1, text: "整理工作台需求", done: true },
+    { id: 2, text: "完成周计划原型", done: false },
+    { id: 3, text: "运动 30 分钟", done: false }
+  ]);
+  const days = ["一 27","二 28","三 29","四 30","五 31","六 01","日 02"];
+  const [weekTasks, setWeekTasks] = usePersistentState("winnie-week-tasks", [
+    { id: 1, day: "四 30", text: "完成本周计划的第一版", done: false },
+    { id: 2, day: "六 01", text: "看电影，休息一下", done: false }
+  ]);
+  const [taskDay, setTaskDay] = useState("四 30");
+  const [taskDraft, setTaskDraft] = useState("");
+  const addWeekTask = event => {
+    event.preventDefault();
+    if (!taskDraft.trim()) return;
+    setWeekTasks(current => [...current, { id: Date.now(), day: taskDay, text: taskDraft.trim(), done: false }]);
+    setTaskDraft("");
+  };
   return <>
     <PageIntro eyebrow="WEEK 31" icon="▤" title="周计划表" copy="先抓住这一周最重要的几件事。" />
     <section className="card focus-card"><span className="section-kicker">THIS WEEK</span><h2>本周三件重要的事</h2>
-      {items.slice(0,3).map(item => <button className={item.done ? "plan-line done" : "plan-line"} key={item.id} onClick={() => setItems(v => v.map(x => x.id === item.id ? {...x,done:!x.done}:x))}><span>{item.done ? "✓" : ""}</span>{item.text}</button>)}
+      {priorities.map(item => <div className={item.done ? "editable-plan done" : "editable-plan"} key={item.id}>
+        <button onClick={() => setPriorities(v => v.map(x => x.id === item.id ? {...x,done:!x.done}:x))}>{item.done ? "✓" : ""}</button>
+        <input value={item.text} onChange={event => setPriorities(v => v.map(x => x.id === item.id ? {...x,text:event.target.value}:x))} aria-label="编辑本周重要事项" />
+      </div>)}
     </section>
     <section className="card week-card"><div className="section-heading"><h2>7.27 — 8.2</h2><span className="count-pill">1/4</span></div>
-      {["一 27","二 28","三 29","四 30","五 31","六 01","日 02"].map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b>{day}</b><span>{index === 3 ? "完成本周计划的第一版" : index === 5 ? "看电影，休息一下" : "＋ 添加任务"}</span></div>)}
+      {days.map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b>{day}</b><div className="week-day-tasks">
+        {weekTasks.filter(task => task.day === day).map(task => <div className={task.done ? "week-task done" : "week-task"} key={task.id}><button onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}>{task.done ? "✓" : ""}</button><input value={task.text} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/><button className="delete-mini" onClick={() => setWeekTasks(v => v.filter(x => x.id !== task.id))}>×</button></div>)}
+        {!weekTasks.some(task => task.day === day) && <span className="empty-day">暂无任务</span>}
+      </div></div>)}
+      <form className="week-add-form" onSubmit={addWeekTask}><select value={taskDay} onChange={event => setTaskDay(event.target.value)}>{days.map(day => <option key={day}>{day}</option>)}</select><input value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder="输入本周任务" /><button type="submit">添加</button></form>
     </section>
   </>;
 }
 
 function DayPlan({ items, setItems }) {
-  const addItem = group => {
-    const title = window.prompt(`添加${group}任务`);
-    if (title?.trim()) setItems(current => [...current, { id: Date.now(), text: title.trim(), group, done: false }]);
+  const [drafts, setDrafts] = useState({ 工作: "", 生活: "", 娱乐: "" });
+  const addItem = (event, group) => {
+    event.preventDefault();
+    const title = drafts[group].trim();
+    if (!title) return;
+    setItems(current => [...current, { id: Date.now(), text: title, group, done: false }]);
+    setDrafts(current => ({ ...current, [group]: "" }));
   };
   return <>
     <PageIntro eyebrow="THURSDAY · JUL 30" icon="☑" title="日计划表" copy="把今天拆成清楚、可以完成的小步骤。" />
     {["工作","生活","娱乐"].map(group => <section className="card day-section" key={group}><div className="section-heading"><h2>{group}</h2><span className="count-pill">{items.filter(x=>x.group===group&&x.done).length}/{items.filter(x=>x.group===group).length}</span></div>
-      {items.filter(x=>x.group===group).map(item=><button className={item.done?"plan-line done":"plan-line"} key={item.id} onClick={()=>setItems(v=>v.map(x=>x.id===item.id?{...x,done:!x.done}:x))}><span>{item.done?"✓":""}</span>{item.text}</button>)}
-      <button className="soft-button" onClick={() => addItem(group)}>＋ 添加{group}任务</button>
+      {items.filter(x=>x.group===group).map(item=><div className={item.done?"editable-plan done":"editable-plan"} key={item.id}><button onClick={()=>setItems(v=>v.map(x=>x.id===item.id?{...x,done:!x.done}:x))}>{item.done?"✓":""}</button><input value={item.text} onChange={event=>setItems(v=>v.map(x=>x.id===item.id?{...x,text:event.target.value}:x))}/><button className="delete-mini" onClick={()=>setItems(v=>v.filter(x=>x.id!==item.id))}>×</button></div>)}
+      <form className="inline-add-form compact" onSubmit={event => addItem(event, group)}><input value={drafts[group]} onChange={event=>setDrafts(current=>({...current,[group]:event.target.value}))} placeholder={`添加${group}任务`} /><button type="submit">添加</button></form>
     </section>)}
   </>;
 }
 
 function ReminderPage() {
-  const [reminders, setReminders] = useState([
+  const [reminders, setReminders] = usePersistentState("winnie-reminders", [
     { title:"提交项目第一版", date:"8 月 3 日", on:true },
     { title:"预约牙医", date:"8 月 8 日", on:false }
   ]);
@@ -391,6 +445,7 @@ const habitSeed = [
 function HabitPage({ habits, setHabits }) {
   const today = 30;
   const toggleToday = id => setHabits(v=>v.map(h=>h.id===id?{...h,days:h.days.includes(today)?h.days.filter(d=>d!==today):[...h.days,today]}:h));
+  const toggleDay = (id, day) => setHabits(v => v.map(h => h.id === id ? { ...h, days: h.days.includes(day) ? h.days.filter(d => d !== day) : [...h.days, day] } : h));
   const addHabit = () => {
     const name = window.prompt("新习惯名称");
     if (name?.trim()) setHabits(current => [...current, { id: `habit-${Date.now()}`, icon: "✦", name: name.trim(), color: "coral", days: [] }]);
@@ -401,7 +456,13 @@ function HabitPage({ habits, setHabits }) {
       <div className="habit-today">{habits.map(h=><button key={h.id} className={h.days.includes(today)?"habit-pill checked":"habit-pill"} onClick={()=>toggleToday(h.id)}><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{h.days.includes(today)?"今天已打卡":"点击打卡"}</small></button>)}</div>
     </section>
     <section className="card heatmap-card"><div className="section-heading"><div><span className="section-kicker">JULY</span><h2>本月打卡</h2></div><span className="count-pill">30 天</span></div>
-      {habits.map(h=><div className="habit-calendar" key={h.id}><div className="habit-title"><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{h.days.length} 天</small></div><div className={`heat-grid ${h.color}`}>{Array.from({length:31},(_,i)=><span className={h.days.includes(i+1)?"hit":""} key={i}>{i+1}</span>)}</div></div>)}
+      {habits.map(h=><div className="habit-calendar" key={h.id}><div className="habit-title"><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{h.days.length} 天</small></div>
+        <div className="heat-weekdays">{["一","二","三","四","五","六","日"].map(day => <span key={day}>{day}</span>)}</div>
+        <div className={`heat-grid ${h.color}`}>
+          <span className="blank" /><span className="blank" />
+          {Array.from({length:31},(_,i)=><button type="button" onClick={() => toggleDay(h.id, i + 1)} className={`${h.days.includes(i+1)?"hit ":""}${i+1===today?"today":""}`} key={i}>{i+1}</button>)}
+        </div>
+      </div>)}
     </section>
   </>;
 }
@@ -409,6 +470,7 @@ function HabitPage({ habits, setHabits }) {
 function DataPage({ health, setHealth }) {
   const [type,setType]=useState("早间体重");
   const [value,setValue]=useState("");
+  const [recordDate, setRecordDate] = useState("2026-07-30");
   const keyMap = { "早间体重": "morning", "晚间体重": "evening", "睡眠时长": "sleep" };
   const historyMap = { "早间体重": "morningHistory", "晚间体重": "eveningHistory", "睡眠时长": "sleepHistory" };
   const data = health[type === "晚间体重" ? "eveningHistory" : "morningHistory"];
@@ -421,7 +483,7 @@ function DataPage({ health, setHealth }) {
     }
     const key = keyMap[type];
     const historyKey = historyMap[type];
-    setHealth(current => ({ ...current, [key]: String(numeric), [historyKey]: [...current[historyKey].slice(1), numeric] }));
+    setHealth(current => ({ ...current, [key]: String(numeric), [historyKey]: [...current[historyKey].slice(1), numeric], lastRecordDate: recordDate }));
     setValue("");
   };
   return <>
@@ -433,6 +495,7 @@ function DataPage({ health, setHealth }) {
     </section>
     <section className="card data-form"><div className="section-heading"><h2>录入数据</h2><span className="count-pill">7 月 30 日</span></div>
       <div className="segmented">{["早间体重","晚间体重","睡眠时长"].map(x=><button className={type===x?"active":""} onClick={()=>setType(x)} key={x}>{x}</button>)}</div>
+      <label><span>记录日期</span><div className="value-field"><input type="date" value={recordDate} onChange={event => setRecordDate(event.target.value)} /></div></label>
       <label><span>{type}</span><div className="value-field"><input value={value} onChange={e=>setValue(e.target.value)} inputMode="decimal" placeholder={type==="睡眠时长"?"例如 7.5":"例如 52.6"} /><b>{type==="睡眠时长"?"小时":"kg"}</b></div></label>
       <button className="primary-button" onClick={saveData}>保存今日数据</button>
     </section>
