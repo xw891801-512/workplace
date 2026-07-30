@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import CloudSyncPage from "./cloud-sync";
+import { useEffect, useMemo, useRef, useState } from "react";
+import CloudSyncPage, { CloudAutoSync } from "./cloud-sync";
 
 const navGroups = [
   {
@@ -15,9 +15,9 @@ const navGroups = [
   {
     label: "打卡",
     items: [
-      { icon: "✿", label: "习惯" },
-      { icon: "⌁", label: "数据" },
-      { icon: "♨", label: "吃饭" }
+      { icon: "habit", label: "习惯" },
+      { icon: "data", label: "数据" },
+      { icon: "meal", label: "吃饭" }
     ]
   }
 ];
@@ -38,6 +38,7 @@ const meals = [
 function usePersistentState(key, initialValue) {
   const [value, setValue] = useState(initialValue);
   const [ready, setReady] = useState(false);
+  const lastSaved = useRef(null);
 
   useEffect(() => {
     try {
@@ -50,10 +51,26 @@ function usePersistentState(key, initialValue) {
   }, [key]);
 
   useEffect(() => {
-    if (ready) localStorage.setItem(key, JSON.stringify(value));
+    if (!ready) return;
+    const serialized = JSON.stringify(value);
+    localStorage.setItem(key, serialized);
+    if (lastSaved.current !== null && lastSaved.current !== serialized) {
+      window.dispatchEvent(new Event("winnie:data-change"));
+    }
+    lastSaved.current = serialized;
   }, [key, ready, value]);
 
   return [value, setValue];
+}
+
+function NavIcon({ kind }) {
+  const paths = {
+    check: <><circle cx="12" cy="12" r="8.5"/><path d="m8 12 2.5 2.5L16 9"/></>,
+    habit: <><path d="M12 20v-8"/><path d="M12 13c-4.8 0-7-2.6-7-6 4.2 0 7 1.8 7 6Z"/><path d="M12 11c.3-4.3 2.8-6.4 7-6.4 0 3.8-2.3 6.4-7 6.4Z"/></>,
+    data: <><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 3.5-4 3 2 4.5-6"/><circle cx="7" cy="15" r=".8"/><circle cx="10.5" cy="11" r=".8"/><circle cx="13.5" cy="13" r=".8"/><circle cx="18" cy="7" r=".8"/></>,
+    meal: <><path d="M4 11h16c0 5-3.5 8-8 8s-8-3-8-8Z"/><path d="M7 8c0-1.2.7-1.9 1.5-2.7M12 8c0-1.2.7-1.9 1.5-2.7M17 8c0-1.2.7-1.9 1.5-2.7"/></>
+  };
+  return <svg className="nav-icon-svg" viewBox="0 0 24 24" aria-hidden="true">{paths[kind]}</svg>;
 }
 
 export default function TodayPage() {
@@ -77,6 +94,7 @@ export default function TodayPage() {
   const [newTask, setNewTask] = useState("");
   const [activeGroup, setActiveGroup] = useState("全部");
   const [storageReady, setStorageReady] = useState(false);
+  const lastWorkbenchSave = useRef(null);
 
   useEffect(() => {
     try {
@@ -96,7 +114,12 @@ export default function TodayPage() {
   useEffect(() => {
     if (!storageReady) return;
     const safeMeals = Object.fromEntries(Object.entries(mealRecords).map(([key, item]) => [key, { done: item.done, photo: null }]));
-    localStorage.setItem("winnie-workbench", JSON.stringify({ tasks, habits, health, mealRecords: safeMeals }));
+    const serialized = JSON.stringify({ tasks, habits, health, mealRecords: safeMeals });
+    localStorage.setItem("winnie-workbench", serialized);
+    if (lastWorkbenchSave.current !== null && lastWorkbenchSave.current !== serialized) {
+      window.dispatchEvent(new Event("winnie:data-change"));
+    }
+    lastWorkbenchSave.current = serialized;
   }, [tasks, habits, health, mealRecords, storageReady]);
 
   const completed = tasks.filter((task) => task.done).length;
@@ -125,6 +148,7 @@ export default function TodayPage() {
 
   return (
     <main className="app-shell">
+      <CloudAutoSync />
       <aside className="side-rail" aria-label="主要导航">
         <button className="brand" aria-label="工作台首页" onClick={() => { setActiveNav("今天"); setOpenGroup(null); }}>W</button>
         <nav>
@@ -143,7 +167,7 @@ export default function TodayPage() {
                 aria-expanded={openGroup === group.label}
                 aria-label={`${group.label}菜单`}
               >
-                <span>{group.label === "计划" ? "▤" : "✿"}</span>
+                <span>{group.label === "计划" ? "▤" : <NavIcon kind="check" />}</span>
                 <small>{group.label}</small>
                 <i>{openGroup === group.label ? "−" : "+"}</i>
               </button>
@@ -155,7 +179,7 @@ export default function TodayPage() {
                   aria-label={item.label}
                   title={item.label}
                 >
-                  <span>{item.icon}</span>
+                  <span>{group.label === "打卡" ? <NavIcon kind={item.icon} /> : item.icon}</span>
                   <small>{item.label}</small>
                 </button>
               ))}</div>}
@@ -169,7 +193,6 @@ export default function TodayPage() {
         >
           <span>☁</span><small>同步</small>
         </button>
-        <div className="avatar" aria-label="用户头像">温</div>
       </aside>
 
       {activeNav === "今天" ? <section className="content">

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/github-cloud-sync-spike
+      - codex/automatic-cloud-sync
   workflow_dispatch:
 
 permissions:
