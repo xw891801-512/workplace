@@ -29,18 +29,18 @@ button { color: inherit; }
 
 .app-shell {
   width: min(100%, 560px);
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 70px minmax(0, 1fr);
+  overflow: hidden;
   background: var(--cream);
   box-shadow: 0 0 60px rgba(96, 67, 80, .12);
 }
 
 .side-rail {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  height: 100dvh;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -141,6 +141,10 @@ button { color: inherit; }
 
 .content {
   min-width: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: max(18px, env(safe-area-inset-top)) 15px calc(34px + env(safe-area-inset-bottom));
 }
 
@@ -315,8 +319,15 @@ button { color: inherit; }
 .month-grid button.selected::after { background:white; }
 .month-grid button.is-today { outline:3px solid #e86f94; outline-offset:2px; color:#c94d73; font-weight:900; background:#ffe3eb; }
 .month-grid button.is-today.selected { color:white; background:#df6788; outline-color:#b9456b; }
+.calendar-heading-actions { display:flex; align-items:center; gap:7px; }
+.calendar-add { width:29px; height:29px; display:grid; place-items:center; padding:0; border:0; border-radius:10px; color:white; background:var(--rose); font-size:18px; font-weight:800; cursor:pointer; }
 .agenda-card h2 { margin: 5px 0 13px; }
+.agenda-strip { display:flex; gap:9px; width:100%; overflow-x:auto; padding:2px 1px 10px; scroll-snap-type:x mandatory; scrollbar-width:thin; scrollbar-color:#e8cbd4 transparent; }
+.agenda-day-card { flex:0 0 82%; min-height:122px; display:flex; flex-direction:column; gap:7px; padding:13px; border:1px solid #eee4e7; border-radius:18px; color:var(--ink); background:#f4eff1; opacity:.48; filter:saturate(.55); text-align:left; scroll-snap-align:center; cursor:pointer; }
+.agenda-day-card.active { background:#fff8fa; border-color:#f0cad5; opacity:1; filter:none; box-shadow:0 8px 20px rgba(165,105,125,.09); }
+.agenda-day-card > span { color:var(--rose-deep); font-size:11px; font-weight:900; }
 .agenda-item { display:flex; align-items:center; gap:10px; padding:12px; border-radius:15px; background:#fff8fa; }
+.agenda-day-card .agenda-item { padding:9px; background:rgba(255,255,255,.72); }
 .agenda-item > div { display:grid; gap:3px; }
 .agenda-item b { font-size:12px; }.agenda-item small { color:var(--muted); font-size:9px; }
 .agenda-dot { width:9px; height:9px; border-radius:50%; }.agenda-dot.work { background:#90a9db; }
@@ -332,6 +343,10 @@ button { color: inherit; }
 .calendar-event-form input, .calendar-event-form select { min-width:0; width:100%; padding:9px 8px; border:1px solid #ead9df; border-radius:10px; outline:none; background:white; color:var(--ink); font-size:9px; }
 .calendar-event-form label { display:grid; gap:3px; color:#95858d; font-size:8px; }
 .calendar-event-form button { height:34px; border:0; border-radius:10px; color:white; background:var(--rose); font-size:9px; font-weight:800; cursor:pointer; }
+.modal-backdrop { position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:20px; background:rgba(66,48,58,.28); backdrop-filter:blur(5px); }
+.event-modal { width:min(100%,420px); padding:20px; border-radius:24px; background:#fffdfd; box-shadow:0 24px 70px rgba(91,55,69,.25); }
+.event-modal h2 { margin:5px 0 0; }
+.modal-close { width:31px; height:31px; display:grid; place-items:center; padding:0; border:0; border-radius:11px; color:#9b7f89; background:#f8eaee; font-size:22px; cursor:pointer; }
 
 .focus-card > h2 { margin:5px 0 12px; }
 .priority-add { width:30px; height:30px; display:grid; place-items:center; border:0; border-radius:11px; color:white; background:var(--rose); font-size:18px; cursor:pointer; }
@@ -470,8 +485,8 @@ button { color: inherit; }
 
 @media (min-width: 700px) {
   body { padding: 24px 0; }
-  .app-shell { min-height: calc(100vh - 48px); border-radius: 34px; overflow: hidden; }
-  .side-rail { height: calc(100vh - 48px); }
+  .app-shell { height: calc(100dvh - 48px); min-height: calc(100dvh - 48px); border-radius: 34px; overflow: hidden; }
+  .side-rail, .content { height: calc(100dvh - 48px); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
