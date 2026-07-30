@@ -907,12 +907,19 @@ function InspirationPage() {
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState({ tag:"生活碎片", text:"" });
   const tagTone = { "生活碎片":"pink", "好玩的梦":"lilac", "工作灵感":"blue", "想看的书":"mint", "其他":"peach" };
+  const ideaCategories = ["生活碎片","好玩的梦","工作灵感","想看的书","其他"];
   const add = event => { event.preventDefault(); if(!draft.text.trim())return; setItems(current=>[{id:Date.now(),date:localDateKey(),...draft,text:draft.text.trim()},...current]); setDraft(current=>({...current,text:""})); setShowForm(false); };
   return <>
     <PageIntro eyebrow="GROWTH · IDEAS" icon="✦" title="灵感暂存区" copy="先把一闪而过的念头接住，之后再慢慢整理。" />
     <section className="card inspiration-card"><div className="section-heading"><h2>灵感暂存区</h2><button className="mini-add" onClick={()=>setShowForm(current=>!current)}>＋ 记录</button></div>
-      {showForm&&<form className="inspiration-form" onSubmit={add}><select value={draft.tag} onChange={event=>setDraft(current=>({...current,tag:event.target.value}))}>{["生活碎片","好玩的梦","工作灵感","想看的书","其他"].map(tag=><option key={tag}>{tag}</option>)}</select><textarea autoFocus rows="3" value={draft.text} onChange={event=>setDraft(current=>({...current,text:event.target.value}))} placeholder="记下刚刚想到的内容…" /><button type="submit">保存灵感</button></form>}
+      {showForm&&<form className="inspiration-form" onSubmit={add}><select value={draft.tag} onChange={event=>setDraft(current=>({...current,tag:event.target.value}))}>{ideaCategories.map(tag=><option key={tag}>{tag}</option>)}</select><textarea autoFocus rows="3" value={draft.text} onChange={event=>setDraft(current=>({...current,text:event.target.value}))} placeholder="记下刚刚想到的内容…" /><button type="submit">保存灵感</button></form>}
       <div className="inspiration-list">{items.map(item=><article key={item.id}><div><span className={`idea-tag ${tagTone[item.tag]||"peach"}`}>{item.tag}</span><small>{item.date}</small></div><p>{item.text}</p><button onClick={()=>setItems(current=>current.filter(value=>value.id!==item.id))}>删除</button></article>)}</div>
+    </section>
+    <section className="idea-category-grid">
+      {ideaCategories.map(category => {
+        const categoryItems = items.filter(item => item.tag === category);
+        return <article className={`idea-category-card ${tagTone[category]}`} key={category}><div><h2>{category}</h2><span>{categoryItems.length} 条</span></div>{categoryItems.map(item=><p key={item.id}>{item.text}<small>{item.date}</small></p>)}{!categoryItems.length&&<small className="idea-category-empty">还没有记录</small>}</article>;
+      })}
     </section>
   </>;
 }
