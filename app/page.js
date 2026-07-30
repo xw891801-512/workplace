@@ -463,12 +463,11 @@ function WeekPlan() {
     { id: 3, text: "运动 30 分钟", done: false }
   ]);
   const days = ["27 周一","28 周二","29 周三","30 周四","31 周五","01 周六","02 周日"];
-  const dayIcons = ["🐰","🐥","🐷","🐹","🐰","🐥","🐷"];
   const [weekTasks, setWeekTasks] = usePersistentState("winnie-week-tasks", [
     { id: 1, day: "30 周四", text: "完成本周计划的第一版", done: false },
     { id: 2, day: "01 周六", text: "看电影，休息一下", done: false }
   ]);
-  const [taskDay, setTaskDay] = useState("30 周四");
+  const [addingDay, setAddingDay] = useState(null);
   const [taskDraft, setTaskDraft] = useState("");
   const [swipedId, setSwipedId] = useState(null);
   const swipeStartX = useRef(null);
@@ -485,11 +484,12 @@ function WeekPlan() {
     else if (distance > 25) setSwipedId(null);
     swipeStartX.current = null;
   };
-  const addWeekTask = event => {
+  const addWeekTask = (event, day) => {
     event.preventDefault();
     if (!taskDraft.trim()) return;
-    setWeekTasks(current => [...current, { id: Date.now(), day: taskDay, text: taskDraft.trim(), done: false }]);
+    setWeekTasks(current => [...current, { id: Date.now(), day, text: taskDraft.trim(), done: false }]);
     setTaskDraft("");
+    setAddingDay(null);
   };
   return <>
     <PageIntro eyebrow="WEEK 31" icon="▤" title="周计划表" copy="先抓住这一周最重要的几件事。" />
@@ -500,19 +500,29 @@ function WeekPlan() {
       </div>)}
     </section>
     <section className="card week-card"><div className="section-heading"><h2>7 月 27 日 · 8 月 2 日</h2><span className="count-pill">{weekTasks.filter(item => item.done).length}/{weekTasks.length}</span></div>
-      {days.map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b><span>{dayIcons[index]}</span>{day}</b><div className="week-day-tasks">
+      {days.map((day,index) => <div className={index === 3 ? "week-row today" : "week-row"} key={day}><b>{day}</b><div className="week-day-tasks">
         {weekTasks.filter(task => task.day.includes(day.slice(0, 2))).map(task => <div className={swipedId === task.id ? "swipe-task revealed" : "swipe-task"} key={task.id} onTouchStart={startSwipe} onTouchEnd={event => endSwipe(event, task.id)}>
           <button className="swipe-delete" onClick={() => { setWeekTasks(v => v.filter(x => x.id !== task.id)); setSwipedId(null); }}>删除</button>
           <div className={task.done ? "week-task done" : "week-task"}><textarea rows="1" value={task.text} onInput={autoGrow} onChange={event => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,text:event.target.value}:x))}/><button className="round-check" aria-label={task.done ? "取消完成" : "标记完成"} onClick={() => setWeekTasks(v => v.map(x => x.id === task.id ? {...x,done:!x.done}:x))}/></div>
         </div>)}
-      </div></div>)}
-      <form className="week-add-form" onSubmit={addWeekTask}><select value={taskDay} onChange={event => setTaskDay(event.target.value)}>{days.map(day => <option key={day}>{day}</option>)}</select><input value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder="输入本周任务" /><button type="submit">添加</button></form>
+        {addingDay === day && <form className="week-inline-add" onSubmit={event => addWeekTask(event, day)}><input autoFocus value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder={`添加${day.slice(3)}任务`} /><button type="submit">添加</button></form>}
+      </div><button className="week-day-add" aria-label={`添加${day}任务`} onClick={() => { setAddingDay(current => current === day ? null : day); setTaskDraft(""); }}>＋</button></div>)}
     </section>
   </>;
 }
 
 function DayPlan({ items, setItems }) {
   const [drafts, setDrafts] = useState({ 工作: "", 生活: "", 娱乐: "" });
+  const [swipedId, setSwipedId] = useState(null);
+  const swipeStartX = useRef(null);
+  const startSwipe = event => { swipeStartX.current = event.touches[0].clientX; };
+  const endSwipe = (event, id) => {
+    if (swipeStartX.current === null) return;
+    const distance = event.changedTouches[0].clientX - swipeStartX.current;
+    if (distance < -35) setSwipedId(id);
+    else if (distance > 25) setSwipedId(null);
+    swipeStartX.current = null;
+  };
   const addItem = (event, group) => {
     event.preventDefault();
     const title = drafts[group].trim();
@@ -523,7 +533,7 @@ function DayPlan({ items, setItems }) {
   return <>
     <PageIntro eyebrow="THURSDAY · JUL 30" icon="☑" title="日计划表" copy="把今天拆成清楚、可以完成的小步骤。" />
     {["工作","生活","娱乐"].map(group => <section className="card day-section" key={group}><div className="section-heading"><h2>{group}</h2><span className="count-pill">{items.filter(x=>x.group===group&&x.done).length}/{items.filter(x=>x.group===group).length}</span></div>
-      {items.filter(x=>x.group===group).map(item=><div className={item.done?"editable-plan done":"editable-plan"} key={item.id}><input value={item.text} onChange={event=>setItems(v=>v.map(x=>x.id===item.id?{...x,text:event.target.value}:x))}/><button className="delete-mini" onClick={()=>setItems(v=>v.filter(x=>x.id!==item.id))}>×</button><button className="round-check" aria-label={item.done?"取消完成":"标记完成"} onClick={()=>setItems(v=>v.map(x=>x.id===item.id?{...x,done:!x.done}:x))}/></div>)}
+      {items.filter(x=>x.group===group).map(item=><div className={swipedId===item.id?"swipe-task day-swipe revealed":"swipe-task day-swipe"} key={item.id} onTouchStart={startSwipe} onTouchEnd={event=>endSwipe(event,item.id)}><button className="swipe-delete" onClick={()=>{setItems(v=>v.filter(x=>x.id!==item.id));setSwipedId(null);}}>删除</button><div className={item.done?"editable-plan done":"editable-plan"}><input value={item.text} onChange={event=>setItems(v=>v.map(x=>x.id===item.id?{...x,text:event.target.value}:x))}/><button className="round-check" aria-label={item.done?"取消完成":"标记完成"} onClick={()=>setItems(v=>v.map(x=>x.id===item.id?{...x,done:!x.done}:x))}/></div></div>)}
       <form className="inline-add-form compact" onSubmit={event => addItem(event, group)}><input value={drafts[group]} onChange={event=>setDrafts(current=>({...current,[group]:event.target.value}))} placeholder={`添加${group}任务`} /><button type="submit">添加</button></form>
     </section>)}
   </>;
@@ -579,6 +589,8 @@ function HabitPage({ habits, setHabits }) {
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [dragIndex, setDragIndex] = useState(null);
+  const longPressTimer = useRef(null);
   const [habitDraft, setHabitDraft] = useState({ name: "", icon: "✨", color: "coral" });
   const toggleToday = id => setHabits(v=>v.map(h=>{
     if (h.id !== id) return h;
@@ -602,13 +614,34 @@ function HabitPage({ habits, setHabits }) {
     setShowHabitForm(false);
   };
   const updateHabit = (id, patch) => setHabits(current => current.map(habit => habit.id === id ? { ...habit, ...patch } : habit));
-  const moveHabit = (index, direction) => setHabits(current => {
-    const target = index + direction;
-    if (target < 0 || target >= current.length) return current;
+  const moveHabit = (from, target) => setHabits(current => {
+    if (from === target || from < 0 || target < 0 || target >= current.length) return current;
     const next = [...current];
-    [next[index], next[target]] = [next[target], next[index]];
+    const [moved] = next.splice(from, 1);
+    next.splice(target, 0, moved);
     return next;
   });
+  const startHabitDrag = (event, index) => {
+    const handle = event.currentTarget;
+    longPressTimer.current = window.setTimeout(() => {
+      setDragIndex(index);
+      handle.setPointerCapture?.(event.pointerId);
+      navigator.vibrate?.(25);
+    }, 380);
+  };
+  const moveHabitDrag = event => {
+    if (dragIndex === null) return;
+    const row = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-habit-index]");
+    const target = Number(row?.dataset.habitIndex);
+    if (Number.isInteger(target) && target !== dragIndex) {
+      moveHabit(dragIndex, target);
+      setDragIndex(target);
+    }
+  };
+  const endHabitDrag = () => {
+    window.clearTimeout(longPressTimer.current);
+    setDragIndex(null);
+  };
   const deleteHabit = id => {
     if (pendingDelete !== id) {
       setPendingDelete(id);
@@ -625,7 +658,7 @@ function HabitPage({ habits, setHabits }) {
         <div className="habit-options"><label>图标<select value={habitDraft.icon} onChange={event => setHabitDraft(current => ({ ...current, icon: event.target.value }))}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select></label><label>颜色<select value={habitDraft.color} onChange={event => setHabitDraft(current => ({ ...current, color: event.target.value }))}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label></div>
         <button type="submit">创建习惯</button>
       </form>}
-      {editMode && <div className="habit-edit-list">{habits.map((habit, index) => <div className="habit-edit-row" key={habit.id}><div className="habit-order"><button disabled={index === 0} onClick={() => moveHabit(index, -1)} aria-label={`上移${habit.name}`}>↑</button><button disabled={index === habits.length - 1} onClick={() => moveHabit(index, 1)} aria-label={`下移${habit.name}`}>↓</button></div><input value={habit.name} onChange={event => updateHabit(habit.id, { name: event.target.value })}/><select value={habit.icon} onChange={event => updateHabit(habit.id, { icon: event.target.value })}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select><select value={habit.color} onChange={event => updateHabit(habit.id, { color: event.target.value })}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select><button className={pendingDelete === habit.id ? "confirm-delete" : ""} onClick={() => deleteHabit(habit.id)}>{pendingDelete === habit.id ? "确认" : "删除"}</button></div>)}</div>}
+      {editMode && <div className="habit-edit-list">{habits.map((habit, index) => <div className={dragIndex === index ? "habit-edit-row dragging" : "habit-edit-row"} data-habit-index={index} key={habit.id}><button className="habit-drag-handle" aria-label={`长按拖动${habit.name}`} onPointerDown={event => startHabitDrag(event,index)} onPointerMove={moveHabitDrag} onPointerUp={endHabitDrag} onPointerCancel={endHabitDrag}>⋮⋮</button><input value={habit.name} onChange={event => updateHabit(habit.id, { name: event.target.value })}/><select value={habit.icon} onChange={event => updateHabit(habit.id, { icon: event.target.value })}>{["✨","💧","📖","🏃","🧘","🥗","💊","🌙","☀️","🎨"].map(icon => <option key={icon}>{icon}</option>)}</select><select value={habit.color} onChange={event => updateHabit(habit.id, { color: event.target.value })}>{habitColorOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</select><button className={pendingDelete === habit.id ? "confirm-delete" : ""} onClick={() => deleteHabit(habit.id)}>{pendingDelete === habit.id ? "确认" : "删除"}</button></div>)}</div>}
       <div className="habit-today">{habits.map(h=><button key={h.id} disabled={!editMode} className={`${h.days.includes(today)?"habit-pill checked":"habit-pill"}${editMode ? " editable" : ""}`} onClick={()=>toggleToday(h.id)}><span className={`checkin-icon ${h.color}`}>{h.icon}</span><b>{h.name}</b><small>{editMode ? (h.days.includes(today)?"点击取消":"点击打卡") : (h.days.includes(today)?"今天已打卡":"未打卡")}</small></button>)}</div>
     </section>
     <section className="card heatmap-card"><div className="section-heading"><div><span className="section-kicker">HABIT ARCHIVE</span><h2>月度打卡</h2></div><input className="month-picker" type="month" value={habitMonth} onChange={event => setHabitMonth(event.target.value)} /></div>
@@ -636,7 +669,6 @@ function HabitPage({ habits, setHabits }) {
           {Array.from({length:habitMonthDays},(_,i)=><button type="button" disabled={!editMode} onClick={() => toggleDay(h.id, i + 1)} className={`${habitHit(h,i+1)?"hit ":""}${habitDateKey(i+1)===todayKey?"today ":""}${editMode?"editable":""}`} key={i}>{i+1}</button>)}
         </div>
       </div>)}
-      <p className="archive-note">记录按年月保留；切换月份即可回看或补打卡。</p>
     </section>
   </>;
 }
