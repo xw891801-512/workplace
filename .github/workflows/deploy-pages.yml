@@ -28,7 +28,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
+      - run: GITHUB_PAGES=true pnpm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out

@@ -1,4 +1,4 @@
-const isGitHubPages = process.env.GITHUB_ACTIONS === "true";
+const isGitHubPages = process.env.GITHUB_PAGES === "true";
 
 const nextConfig = {
   output: "export",
